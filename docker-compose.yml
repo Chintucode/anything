@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: anything-postgres
+    environment:
+      POSTGRES_DB: anything
+      POSTGRES_USER: anything
+      POSTGRES_PASSWORD: anything
+    ports:
+      - "5432:5432"
+    volumes:
+      - anything-pgdata:/var/lib/postgresql/data
+
+volumes:
+  anything-pgdata:

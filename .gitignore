@@ -1,0 +1,18 @@
+# macOS / editors
+.DS_Store
+.idea/
+*.iml
+
+# Server (Maven)
+server/target/
+
+# Web (Vite)
+web/node_modules/
+web/dist/
+
+# Local environment files
+.env
+.env.*
+
+# Local H2 database files
+server/data/
