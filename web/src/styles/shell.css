@@ -1,0 +1,187 @@
+/* App shell: content column, compact nav bar, tab bar, lists, states. */
+
+.app-main {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  /* room for the floating tab bar */
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-bottom) + var(--space-8));
+}
+
+/* ---------- Nav bar (compact title, appears on scroll) ---------- */
+.navbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: calc(var(--navbar-height) + var(--safe-top));
+  padding-top: var(--safe-top);
+  display: grid;
+  place-items: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.navbar-bg {
+  position: absolute;
+  inset: 0;
+  border-bottom: 0.5px solid var(--material-border);
+}
+
+.navbar-title {
+  position: relative;
+}
+
+/* ---------- Screen & large title ---------- */
+.screen {
+  padding-top: calc(var(--navbar-height) + var(--safe-top));
+}
+
+.large-title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0 var(--space-5);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: var(--space-1);
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  margin-bottom: -0.25rem;
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  background: var(--fill);
+}
+
+/* ---------- Tab bar ---------- */
+.tabbar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  gap: var(--space-10);
+  height: calc(var(--tabbar-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  border-top: 0.5px solid var(--material-border);
+}
+
+.tab {
+  display: flex;
+  min-width: 5rem;
+  color: var(--label-2);
+}
+
+.tab-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.tab-inner[data-active='true'] {
+  color: var(--accent);
+}
+
+.tab-label {
+  font: 500 0.625rem/1.2 var(--font);   /* 10pt, the iOS tab label size */
+  letter-spacing: 0.01em;
+}
+
+/* ---------- Lists (inset grouped) ---------- */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.list li + li .list-row {
+  border-top: 0.5px solid var(--separator);
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  padding: var(--space-3) var(--space-4);
+  margin-left: 0;
+}
+
+.list-row-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* ---------- States ---------- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+  padding: var(--space-10) var(--space-6);
+  max-width: 22rem;
+  margin: var(--space-6) auto 0;
+}
+
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.empty-state p {
+  text-wrap: balance;
+}
+
+.empty-action {
+  margin-top: var(--space-4);
+}
+
+.skeleton-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.skeleton {
+  height: 4.5rem;
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+.today-placeholder {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-5);
+}
+
+.placeholder-note {
+  margin-top: var(--space-3);
+}

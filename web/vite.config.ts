@@ -5,6 +5,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Listen on your Wi-Fi address too, so your phone can open the app
+    host: true,
     // Forward /api calls to the Spring Boot server during development
     proxy: {
       '/api': 'http://localhost:8080',

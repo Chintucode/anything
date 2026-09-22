@@ -1,26 +1,116 @@
-/* Placeholder styles for Day 1. Real design tokens arrive on Day 8. */
-:root {
-  --bg: #f5f5f7;
-  --surface: #ffffff;
-  --text: #1d1d1f;
-  --text-secondary: #6e6e73;
-  --ok: #34c759;
-  --wait: #ff9f0a;
-  --down: #ff3b30;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
-  color: var(--text);
+@import "./styles/tokens.css";
+
+/* ---------- Reset ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
   background: var(--bg);
+  color: var(--label);
+  font: var(--text-body);
+  letter-spacing: var(--track-body);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #000000;
-    --surface: #1c1c1e;
-    --text: #f5f5f7;
-    --text-secondary: #98989d;
-  }
+h1, h2, h3, p {
+  margin: 0;
 }
 
-* { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;   /* no 300ms tap delay */
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Type roles ---------- */
+.t-large-title { font: var(--text-large-title); letter-spacing: var(--track-large-title); }
+.t-title-1     { font: var(--text-title-1);     letter-spacing: var(--track-title-1); }
+.t-title-2     { font: var(--text-title-2);     letter-spacing: var(--track-title-2); }
+.t-title-3     { font: var(--text-title-3);     letter-spacing: var(--track-title-3); }
+.t-headline    { font: var(--text-headline);    letter-spacing: var(--track-headline); }
+.t-body        { font: var(--text-body);        letter-spacing: var(--track-body); }
+.t-callout     { font: var(--text-callout);     letter-spacing: var(--track-callout); }
+.t-subhead     { font: var(--text-subhead);     letter-spacing: var(--track-subhead); }
+.t-footnote    { font: var(--text-footnote);    letter-spacing: var(--track-footnote); }
+.t-caption     { font: var(--text-caption);     letter-spacing: var(--track-caption); }
+.secondary     { color: var(--label-2); }
+.tertiary      { color: var(--label-3); }
+
+/* ---------- Surfaces ---------- */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* Floating chrome: a translucent layer, content scrolls underneath */
+.material {
+  background: var(--material-bar);
+  -webkit-backdrop-filter: var(--material-blur);
+  backdrop-filter: var(--material-blur);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  font: var(--text-headline);
+  letter-spacing: var(--track-headline);
+  user-select: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.btn-plain {
+  color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Visually hidden, still read by screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
