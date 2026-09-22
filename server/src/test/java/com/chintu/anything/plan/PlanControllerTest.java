@@ -14,12 +14,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.chintu.anything.config.ParserConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/** Web-layer tests for POST /api/plans/parse. No database needed. */
+/** Web-layer tests for POST /api/plans/parse. No database needed (the service is mocked). */
 @WebMvcTest(PlanController.class)
 @Import(ParserConfig.class)
 class PlanControllerTest {
@@ -29,6 +30,9 @@ class PlanControllerTest {
 
     @Autowired
     private ObjectMapper json;
+
+    @MockitoBean
+    private PlanService planService;
 
     private static String fixture(String name) throws IOException {
         return Files.readString(Path.of("../fixtures/" + name));

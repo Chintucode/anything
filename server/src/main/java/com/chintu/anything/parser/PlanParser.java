@@ -61,6 +61,9 @@ public class PlanParser {
 
     public static final int MAX_SETS = 20;
 
+    /** Longest line accepted. Keeps every stored field within its database column. */
+    public static final int MAX_LINE_LENGTH = 500;
+
     private static final Pattern HEADER_LINE = Pattern.compile("^([A-Za-z][A-Za-z0-9_-]*)\\s*:\\s*(.*)$");
 
     public ParseResult parse(String markdown) {
@@ -73,6 +76,16 @@ public class PlanParser {
 
         // Handles Windows (\r\n) and old Mac (\r) line endings too.
         String[] lines = markdown.split("\\r\\n|\\r|\\n", -1);
+
+        for (int i = 0; i < lines.length; i++) {
+            if (lines[i].length() > MAX_LINE_LENGTH) {
+                errors.add(new ParseError(i + 1,
+                        "This line is too long (over " + MAX_LINE_LENGTH + " characters). Shorten the name or note."));
+            }
+        }
+        if (!errors.isEmpty()) {
+            return ParseResult.failure(errors);
+        }
 
         int bodyStart = 0;
         PlanHeader header = null;

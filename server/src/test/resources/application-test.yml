@@ -1,0 +1,7 @@
+# Used by tests annotated with @ActiveProfiles("test"):
+# a fresh in-memory database per test run, same PostgreSQL mode as local dev.
+spring:
+  datasource:
+    url: jdbc:h2:mem:anything-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password:

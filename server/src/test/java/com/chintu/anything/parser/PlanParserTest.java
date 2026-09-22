@@ -343,6 +343,17 @@ class PlanParserTest {
         }
 
         @Test
+        void lineTooLong() {
+            ParseResult result = parser.parse(HEADER + BODY + "- " + "a".repeat(600) + " | 3x10\n");
+
+            assertThat(result.errors()).singleElement()
+                    .satisfies(e -> {
+                        assertThat(e.line()).isEqualTo(10);
+                        assertThat(e.message()).contains("too long");
+                    });
+        }
+
+        @Test
         void collectsEveryErrorInOnePass() {
             ParseResult result = parser.parse(HEADER + "## Weeks 5-3: A\n## Phase B\n## Weeks 1-99: C\n");
 
