@@ -7,11 +7,16 @@ import type { TodayResponse } from './types'
  * Query keys in one place, so screens and mutations invalidate the same things.
  * e.g. after ticking an item: queryClient.invalidateQueries({ queryKey: keys.today(id, date) })
  */
+/**
+ * Keys nest: ['plans', id, 'today', date] sits under ['plans', id], so invalidating
+ * the plan refreshes today and progress with it.
+ */
 export const keys = {
   plans: ['plans'] as const,
   plan: (id: number) => ['plans', id] as const,
   today: (id: number, date: string) => ['plans', id, 'today', date] as const,
   progress: (id: number, date: string) => ['plans', id, 'progress', date] as const,
+  week: (id: number, date: string) => ['plans', id, 'week', date] as const,
 }
 
 export function usePlans() {
@@ -22,6 +27,14 @@ export function useToday(planId: number | undefined, date: string) {
   return useQuery({
     queryKey: keys.today(planId ?? -1, date),
     queryFn: () => api.today(planId!, date),
+    enabled: planId !== undefined,
+  })
+}
+
+export function useWeek(planId: number | undefined, date: string) {
+  return useQuery({
+    queryKey: keys.week(planId ?? -1, date),
+    queryFn: () => api.week(planId!, date),
     enabled: planId !== undefined,
   })
 }
@@ -75,14 +88,20 @@ export function useSetCompletion(planId: number, date: string) {
   const key = keys.today(planId, date)
 
   return useMutation({
-    mutationFn: ({ itemId, done }: { itemId: number; done: boolean }) =>
-      api.setCompletion(planId, itemId, date, done),
+    mutationFn: ({ itemId, done, actualReps }: { itemId: number; done: boolean; actualReps?: number | null }) =>
+      api.setCompletion(planId, itemId, date, done, actualReps),
 
-    onMutate: async ({ itemId, done }) => {
+    // Offline: the request is paused (not failed) and fires on reconnect, so the
+    // tick you made in the gym survives the walk home.
+    networkMode: 'online',
+    retry: 2,
+
+    onMutate: async ({ itemId, done, actualReps }) => {
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<TodayResponse>(key)
       if (previous?.items) {
-        const items = previous.items.map((i) => (i.id === itemId ? { ...i, done } : i))
+        const items = previous.items.map((i) =>
+          i.id === itemId ? { ...i, done, actualReps: done ? actualReps ?? null : null } : i)
         queryClient.setQueryData<TodayResponse>(key, {
           ...previous,
           items,
@@ -101,6 +120,28 @@ export function useSetCompletion(planId: number, date: string) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: key })
       queryClient.invalidateQueries({ queryKey: keys.progress(planId, date) })
+    },
+  })
+}
+
+/** Skipping a day, or putting it back. */
+export function useSkipDay(planId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ date, skipped }: { date: string; skipped: boolean }) =>
+      api.setSkipped(planId, date, skipped),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.plan(planId) }),
+  })
+}
+
+/** Moving the whole plan: +1 pushes it a day later, -5 starts it five days earlier. */
+export function useShiftPlan(planId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (days: number) => api.shiftPlan(planId, days),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.plans })
+      queryClient.invalidateQueries({ queryKey: keys.plan(planId) })
     },
   })
 }

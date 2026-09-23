@@ -136,6 +136,37 @@ class TrackingApiIntegrationTest {
     }
 
     @Test
+    void loggingWhatYouActuallyDid() throws Exception {
+        long pushUps = itemIds(MON).get(0);
+
+        // Ticked with a lower number than the plan asked for.
+        mvc.perform(put("/api/plans/" + planId + "/completions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"itemId\": " + pushUps + ", \"date\": \"" + MON + "\", \"done\": true, \"actualReps\": 7}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.actualReps").value(7));
+
+        mvc.perform(get("/api/plans/" + planId + "/today").param("date", MON))
+                .andExpect(jsonPath("$.items[0].done").value(true))
+                .andExpect(jsonPath("$.items[0].actualReps").value(7));
+
+        // Sending it again without the number clears it: "actually, as written".
+        tick(pushUps, MON, true).andExpect(status().isOk());
+        mvc.perform(get("/api/plans/" + planId + "/today").param("date", MON))
+                .andExpect(jsonPath("$.items[0].actualReps").doesNotExist());
+    }
+
+    @Test
+    void sillyRepCountsAreRejected() throws Exception {
+        long pushUps = itemIds(MON).get(0);
+
+        mvc.perform(put("/api/plans/" + planId + "/completions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"itemId\": " + pushUps + ", \"date\": \"" + MON + "\", \"done\": true, \"actualReps\": -3}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void cannotTickAnExerciseOnADayItIsNotScheduled() throws Exception {
         long mondayPushUps = itemIds(MON).get(0);
 

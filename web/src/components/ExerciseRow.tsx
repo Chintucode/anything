@@ -1,4 +1,5 @@
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
+import { useState } from 'react'
 
 import type { TodayItem } from '../api/types'
 import { formatSeconds, formatSetsReps } from '../lib/format'
@@ -7,45 +8,99 @@ import { spring } from '../motion/springs'
 type Props = {
   item: TodayItem
   onToggle: (done: boolean) => void
+  onLogReps: (reps: number | null) => void
 }
 
 /**
- * One exercise you can tick off.
+ * One exercise you can tick off, and log what you actually managed.
  *
  * The whole row is the target (easy with one hand mid-set), it reacts on press
  * rather than on release, and the tick is a spring, not a fade.
  */
-export function ExerciseRow({ item, onToggle }: Props) {
+export function ExerciseRow({ item, onToggle, onLogReps }: Props) {
+  const [logging, setLogging] = useState(false)
+  const planned = item.reps.value ?? 0
+
   function toggle() {
     // A short tap on Android; iOS ignores it. Fires with the visual change, not after.
     navigator.vibrate?.(item.done ? 5 : 12)
     onToggle(!item.done)
   }
 
+  const canLog = item.done && item.reps.kind === 'COUNT'
+
   return (
-    <motion.button
-      className="exercise-item"
-      onClick={toggle}
-      whileTap={{ scale: 0.985 }}
-      transition={spring.snappy}
-      aria-pressed={item.done}
-      data-done={item.done}
-    >
-      <Checkbox done={item.done} />
+    <div className="exercise-wrap">
+      <motion.button
+        className="exercise-item"
+        onClick={toggle}
+        whileTap={{ scale: 0.985 }}
+        transition={spring.snappy}
+        aria-pressed={item.done}
+        data-done={item.done}
+      >
+        <Checkbox done={item.done} />
 
-      <span className="list-row-text">
-        <span className="t-body exercise-name">{item.name}</span>
-        {item.note && <span className="t-footnote secondary">{item.note}</span>}
-      </span>
+        <span className="list-row-text">
+          <span className="t-body exercise-name">{item.name}</span>
+          {item.note && <span className="t-footnote secondary">{item.note}</span>}
+        </span>
 
-      <span className="exercise-meta">
-        <span className="t-subhead">{formatSetsReps(item.sets, item.reps)}</span>
-        {item.restSeconds != null && (
-          <span className="t-caption secondary">rest {formatSeconds(item.restSeconds)}</span>
+        <span className="exercise-meta">
+          <span className="t-subhead">{formatSetsReps(item.sets, item.reps)}</span>
+          {item.restSeconds != null && (
+            <span className="t-caption secondary">rest {formatSeconds(item.restSeconds)}</span>
+          )}
+        </span>
+      </motion.button>
+
+      {canLog && (
+        <button className="log-toggle t-caption" onClick={() => setLogging((v) => !v)} aria-expanded={logging}>
+          {item.actualReps != null ? `did ${item.actualReps}` : 'log actual'}
+        </button>
+      )}
+
+      <AnimatePresence initial={false}>
+        {canLog && logging && (
+          <motion.div
+            className="log-editor"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={spring.default}
+          >
+            <div className="log-row">
+              <span className="t-footnote secondary">Actually did</span>
+              <div className="log-chips">
+                {repOptions(planned, item.actualReps ?? null).map((n) => (
+                  <button
+                    key={n}
+                    className={`chip t-footnote${item.actualReps === n ? ' chip-on' : ''}`}
+                    onClick={() => { onLogReps(n === planned ? null : n); setLogging(false) }}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="t-caption tertiary log-note">
+              Plan says {planned}. Logging the real number keeps your report honest.
+            </p>
+          </motion.div>
         )}
-      </span>
-    </motion.button>
+      </AnimatePresence>
+    </div>
   )
+}
+
+/** A few sensible numbers around what the plan asked for, plus whatever was logged. */
+function repOptions(planned: number, actual: number | null): number[] {
+  const set = new Set<number>()
+  for (const n of [planned - 3, planned - 2, planned - 1, planned, planned + 1, planned + 2]) {
+    if (n > 0) set.add(n)
+  }
+  if (actual != null) set.add(actual)
+  return [...set].sort((a, b) => a - b)
 }
 
 function Checkbox({ done }: { done: boolean }) {

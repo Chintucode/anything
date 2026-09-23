@@ -263,3 +263,36 @@ Repeat this every week:
 - UI days: ask Claude to load the `apple-design` skill (and your Motion skill once it's added).
 - Backend days: ask for tests first, then the code.
 - If you get stuck for more than 30 minutes, paste the error and the file. Don't lose a whole day to it.
+
+---
+
+## Log: what changed while building
+
+Kept here so the blueprint stays honest about what was actually built.
+
+- **Day 9:** the parser now accepts a header fence of three or more dashes (`-------`),
+  because AI models write it that way. Real output is messy; the format absorbed it.
+- **Day 13:** Shift takes negative days too, which gave the Today screen a
+  **"Start today instead"** button. That removed the first real friction found in use:
+  picking the wrong start date used to mean deleting the plan and pasting it again.
+- **Day 15:** logged reps are stored per exercise per day (`completions.actual_reps`),
+  and feed the report.
+- **Day 16:** added `GET /api/plans/{id}/week`, so the Today screen has a week strip and
+  you can open a past day to tick something you forgot.
+- **Day 18 (brought forward):** `GET /api/plans/{id}/report` returns plain text, and the
+  progress card has a **Report for your AI** button. This is the round trip the whole
+  idea rests on, so it was worth building before the polish days.
+
+### Still open
+
+- **Day 17** motion pass (interruptible gestures, shared layout transitions)
+- **Day 19** empty states, error copy
+- **Day 20** accessibility and theme audit
+- **Day 21** accounts — needs a decision on sign-in before building
+- **Week 4** deploy, testing with real people, portfolio write-up
+
+### Decisions made (23 Sep)
+
+- **Sign-in:** email magic link (Day 21). Needs a deployed URL first, so **deploy comes before accounts**.
+- **Hosting:** Render free tier. The server sleeps when idle, so the first open takes ~30s.
+- **Now:** run it locally and use it daily until it earns the deploy. Friction goes in `FRICTION.md`.

@@ -40,14 +40,15 @@ public class CompletionService {
                         "That exercise isn't scheduled on " + date + "."));
 
         var existing = completions.findByItemIdAndDoneOn(item.getId(), date);
-        if (request.done() && existing.isEmpty()) {
-            completions.save(new Completion(plan, item, date));
-        } else if (!request.done()) {
-            existing.ifPresent(completions::delete);
+        if (request.done()) {
+            Completion completion = existing.orElseGet(() -> completions.save(new Completion(plan, item, date)));
+            completion.setActualReps(request.actualReps());   // null clears it again
+            return new CompletionResponse(item.getId(), date, true, completion.getActualReps());
         }
-        return new CompletionResponse(item.getId(), date, request.done());
+        existing.ifPresent(completions::delete);
+        return new CompletionResponse(item.getId(), date, false, null);
     }
 
-    public record CompletionResponse(Long itemId, LocalDate date, boolean done) {
+    public record CompletionResponse(Long itemId, LocalDate date, boolean done, Integer actualReps) {
     }
 }

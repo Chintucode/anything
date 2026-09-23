@@ -87,12 +87,14 @@ export interface PlanDetail extends PlanSummary {
 
 export interface TodayItem extends ItemView {
   done: boolean
+  /** What you actually did, when it differed from the plan. */
+  actualReps?: number | null
 }
 
 export interface TodayResponse {
   planId: number
   planTitle: string
-  status: 'TRAINING' | 'REST' | 'NOT_STARTED' | 'FINISHED'
+  status: 'TRAINING' | 'REST' | 'SKIPPED' | 'NOT_STARTED' | 'FINISHED'
   date: string
   weekday: Weekday
   week?: number
@@ -103,6 +105,25 @@ export interface TodayResponse {
   doneCount?: number
   daysUntilStart?: number
   next?: { date: string; weekday: Weekday; title: string }
+  /** The most recent training day left unfinished, if there is one. */
+  missed?: { date: string; weekday: Weekday; title: string; done: number; total: number }
+}
+
+export interface WeekDay {
+  date: string
+  weekday: Weekday
+  status: 'TRAINING' | 'REST' | 'SKIPPED' | 'NOT_STARTED' | 'FINISHED'
+  planWeek?: number
+  title?: string
+  done: number
+  total: number
+}
+
+export interface WeekResponse {
+  planId: number
+  from: string
+  to: string
+  days: WeekDay[]
 }
 
 export interface ProgressResponse {

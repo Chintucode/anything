@@ -73,6 +73,11 @@ public class Plan {
         phase.setPlan(this);
     }
 
+    /** Moves the whole plan later (or earlier, with a negative number). */
+    public void shiftBy(int days) {
+        dayOffset += days;
+    }
+
     /** Last calendar day of the plan, including any days it was shifted. */
     public LocalDate endDate() {
         return startDate.plusDays((long) weeks * 7 - 1 + dayOffset);

@@ -61,7 +61,9 @@ a {
 .t-footnote    { font: var(--text-footnote);    letter-spacing: var(--track-footnote); }
 .t-caption     { font: var(--text-caption);     letter-spacing: var(--track-caption); }
 .secondary     { color: var(--label-2); }
-.tertiary      { color: var(--label-3); }
+/* Tertiary text is still text: it uses the readable secondary colour.
+   --label-3 is for decoration (hairlines, empty checkboxes) only. */
+.tertiary      { color: var(--label-2); }
 
 /* ---------- Surfaces ---------- */
 .card {
@@ -92,12 +94,12 @@ a {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--accent-contrast);
 }
 
 .btn-plain {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .btn:disabled {

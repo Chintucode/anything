@@ -36,7 +36,7 @@ export function PlansScreen() {
     <Screen title="Plans" trailing={<AddButton />}>
       {plans.isPending && <Skeleton rows={2} />}
 
-      {plans.isError && <ErrorState message={plans.error.message} onRetry={() => plans.refetch()} />}
+      {plans.isError && <ErrorState error={plans.error} onRetry={() => plans.refetch()} />}
 
       {plans.isSuccess && plans.data.length === 0 && (
         <EmptyState

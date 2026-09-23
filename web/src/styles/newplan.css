@@ -9,7 +9,7 @@
   align-items: center;
   gap: 2px;
   padding-right: var(--space-2);
-  color: var(--accent);
+  color: var(--accent-text);
   pointer-events: auto;
 }
 
@@ -256,7 +256,7 @@
   text-align: center;
   border-radius: var(--radius-sm);
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
@@ -345,7 +345,7 @@
 
 .chip-on {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .date-long {

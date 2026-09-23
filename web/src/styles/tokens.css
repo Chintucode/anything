@@ -13,12 +13,14 @@
   --surface: #ffffff;                     /* cards, rows */
   --surface-2: #f2f2f7;                   /* inset fills inside cards */
   --label: #000000;
-  --label-2: rgba(60, 60, 67, 0.6);       /* secondary text */
-  --label-3: rgba(60, 60, 67, 0.3);       /* tertiary, placeholders */
+  --label-2: rgba(60, 60, 67, 0.78);      /* secondary text, at 4.5:1 on our backgrounds */
+  --label-3: rgba(60, 60, 67, 0.32);      /* decoration only: empty checkboxes, hairlines */
   --separator: rgba(60, 60, 67, 0.18);
   --fill: rgba(120, 120, 128, 0.12);      /* pressed states, inputs */
 
-  --accent: #007aff;
+  --accent: #007aff;              /* graphics: rings, bars, fills (3:1 is the bar there) */
+  --accent-text: #0063cc;         /* accent-coloured TEXT needs 4.5:1, so it's a step darker */
+  --accent-strong: #0063cc;       /* filled buttons, so white text on them passes */
   --accent-contrast: #ffffff;
   --success: #34c759;
   --warning: #ff9500;
@@ -82,12 +84,14 @@
     --surface: #1c1c1e;
     --surface-2: #2c2c2e;
     --label: #ffffff;
-    --label-2: rgba(235, 235, 245, 0.6);
-    --label-3: rgba(235, 235, 245, 0.3);
+    --label-2: rgba(235, 235, 245, 0.72);
+    --label-3: rgba(235, 235, 245, 0.35);
     --separator: rgba(84, 84, 88, 0.6);
     --fill: rgba(120, 120, 128, 0.24);
 
     --accent: #0a84ff;
+    --accent-text: #6ab4ff;       /* on dark surfaces, accent text goes lighter, not darker */
+    --accent-strong: #1268d6;
     --success: #30d158;
     --warning: #ff9f0a;
     --danger: #ff453a;

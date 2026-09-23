@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * GET /api/plans/{id}/today            what to do today (server's date)
  * GET /api/plans/{id}/today?date=...   what to do on any date, e.g. 2026-10-05
+ * GET /api/plans/{id}/week[?date=...]  the Monday-to-Sunday week around a date
  *
  * <p>The web app will always send its own local date, so the answer follows the
  * user's time zone, not the server's.
@@ -19,9 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class TodayController {
 
     private final TodayService service;
+    private final WeekService weekService;
 
-    public TodayController(TodayService service) {
+    public TodayController(TodayService service, WeekService weekService) {
         this.service = service;
+        this.weekService = weekService;
     }
 
     @GetMapping("/api/plans/{id}/today")
@@ -29,5 +32,12 @@ public class TodayController {
             @PathVariable long id,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return service.today(id, date != null ? date : LocalDate.now());
+    }
+
+    @GetMapping("/api/plans/{id}/week")
+    public WeekResponse week(
+            @PathVariable long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return weekService.week(id, date != null ? date : LocalDate.now());
     }
 }

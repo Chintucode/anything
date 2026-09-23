@@ -1,5 +1,6 @@
 import { useProgress } from '../api/queries'
 import { ProgressRing } from './ProgressRing'
+import { ReportButton } from './ReportButton'
 import { WeekBars } from './WeekBars'
 
 type Props = {
@@ -33,6 +34,8 @@ export function ProgressCard({ planId, date, week }: Props) {
       </header>
 
       <WeekBars weeks={weeks} currentWeek={week} />
+
+      <ReportButton planId={planId} date={date} />
     </section>
   )
 }

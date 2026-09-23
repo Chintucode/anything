@@ -14,10 +14,10 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
-/** "This exercise was done on this date." One row per item per day at most. */
+/** "This training day was skipped." It stops counting, instead of counting as failure. */
 @Entity
-@Table(name = "completions")
-public class Completion {
+@Table(name = "skipped_days")
+public class SkippedDay {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,27 +27,18 @@ public class Completion {
     @JoinColumn(name = "plan_id", nullable = false)
     private Plan plan;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "item_id", nullable = false)
-    private PlanItem item;
-
-    @Column(name = "done_on", nullable = false)
-    private LocalDate doneOn;
-
-    /** What the user actually did, when it differed from the plan. Null = as written. */
-    @Column(name = "actual_reps")
-    private Integer actualReps;
+    @Column(name = "skip_on", nullable = false)
+    private LocalDate skipOn;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    protected Completion() {
+    protected SkippedDay() {
     }
 
-    public Completion(Plan plan, PlanItem item, LocalDate doneOn) {
+    public SkippedDay(Plan plan, LocalDate skipOn) {
         this.plan = plan;
-        this.item = item;
-        this.doneOn = doneOn;
+        this.skipOn = skipOn;
     }
 
     @PrePersist
@@ -55,14 +46,7 @@ public class Completion {
         createdAt = LocalDateTime.now();
     }
 
-    public void setActualReps(Integer actualReps) {
-        this.actualReps = actualReps;
-    }
-
     public Long getId() { return id; }
     public Plan getPlan() { return plan; }
-    public PlanItem getItem() { return item; }
-    public LocalDate getDoneOn() { return doneOn; }
-    public Integer getActualReps() { return actualReps; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDate getSkipOn() { return skipOn; }
 }

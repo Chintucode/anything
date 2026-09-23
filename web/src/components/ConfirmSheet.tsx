@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, type PanInfo } from 'motion/react'
 import { useEffect } from 'react'
 
 import { spring } from '../motion/springs'
@@ -50,7 +50,18 @@ export function ConfirmSheet({
             animate={{ y: 0 }}
             exit={{ y: '110%' }}
             transition={spring.sheet}
+            // Drag it down to dismiss: a flick counts even if it barely moved.
+            drag="y"
+            dragDirectionLock
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.02, bottom: 0.6 }}
+            onDragEnd={(_: unknown, info: PanInfo) => {
+              if (info.offset.y > 90 || info.velocity.y > 500) {
+                onCancel()
+              }
+            }}
           >
+            <span className="sheet-grabber" aria-hidden="true" />
             <h2 className="t-title-3">{title}</h2>
             {message && <p className="t-subhead secondary">{message}</p>}
             <div className="sheet-actions">

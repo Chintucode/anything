@@ -26,17 +26,20 @@ import com.chintu.anything.schedule.PlanCalendar.Position;
  * your workout, your percentage hasn't dropped; each tick can only raise it.
  *
  * <p>Same idea for the streak: an unfinished today doesn't break it, because the
- * day isn't over yet. A past training day that wasn't fully done does break it.
+ * day isn't over yet. A past training day that wasn't fully done does break it,
+ * unless it was skipped — a skipped day stops counting altogether.
  */
 @Service
 public class ProgressService {
 
     private final PlanRepository plans;
     private final CompletionRepository completions;
+    private final SkippedDayRepository skips;
 
-    public ProgressService(PlanRepository plans, CompletionRepository completions) {
+    public ProgressService(PlanRepository plans, CompletionRepository completions, SkippedDayRepository skips) {
         this.plans = plans;
         this.completions = completions;
+        this.skips = skips;
     }
 
     @Transactional(readOnly = true)
@@ -53,6 +56,10 @@ public class ProgressService {
             doneByDate.computeIfAbsent(c.getDoneOn(), d -> new HashSet<>()).add(c.getItem().getId());
         }
 
+        Set<LocalDate> skipped = skips.findByPlanId(plan.getId()).stream()
+                .map(SkippedDay::getSkipOn)
+                .collect(java.util.stream.Collectors.toSet());
+
         int[] weekScheduled = new int[plan.getWeeks() + 1];
         int[] weekCompleted = new int[plan.getWeeks() + 1];
         int scheduledSoFar = 0;
@@ -65,8 +72,8 @@ public class ProgressService {
                 continue;
             }
             Optional<PlanDay> day = PlanSchedule.dayAt(plan, pos);
-            if (day.isEmpty()) {
-                continue; // rest day
+            if (day.isEmpty() || skipped.contains(d)) {
+                continue; // rest day, or a day the user wrote off
             }
             int due = day.get().getItems().size();
             int done = doneCount(day.get(), doneByDate.get(d));
@@ -90,20 +97,21 @@ public class ProgressService {
         }
 
         int percent = scheduledSoFar == 0 ? 0 : Math.round(100f * completedSoFar / scheduledSoFar);
-        int streak = streak(plan, date, first, doneByDate);
+        int streak = streak(plan, date, first, doneByDate, skipped);
 
         return new ProgressResponse(plan.getId(), date, percent, completedSoFar, scheduledSoFar,
                 streak, totalItems, weeks);
     }
 
     /** Training days in a row, counting back from {@code date}, where every exercise was done. */
-    private static int streak(Plan plan, LocalDate date, LocalDate first, Map<LocalDate, Set<Long>> doneByDate) {
+    private static int streak(Plan plan, LocalDate date, LocalDate first,
+            Map<LocalDate, Set<Long>> doneByDate, Set<LocalDate> skipped) {
         LocalDate from = date.isAfter(plan.endDate()) ? plan.endDate() : date;
         int streak = 0;
         for (LocalDate d = from; !d.isBefore(first); d = d.minusDays(1)) {
             Optional<PlanDay> day = PlanSchedule.dayOn(plan, d);
-            if (day.isEmpty()) {
-                continue; // rest days don't count and don't break the streak
+            if (day.isEmpty() || skipped.contains(d)) {
+                continue; // rest days and skipped days neither count nor break the streak
             }
             boolean complete = doneCount(day.get(), doneByDate.get(d)) == day.get().getItems().size();
             if (complete) {

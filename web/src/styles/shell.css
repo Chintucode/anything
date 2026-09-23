@@ -57,7 +57,7 @@
   height: var(--tap-min);
   margin-bottom: -0.25rem;
   border-radius: var(--radius-pill);
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--fill);
 }
 
@@ -90,7 +90,7 @@
 }
 
 .tab-inner[data-active='true'] {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .tab-label {
@@ -146,7 +146,7 @@
   height: 4rem;
   margin-bottom: var(--space-2);
   border-radius: var(--radius-pill);
-  color: var(--accent);
+  color: var(--accent-text);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
@@ -250,4 +250,28 @@
 .btn-danger {
   background: var(--danger);
   color: #fff;
+}
+
+/* ---------- Offline ---------- */
+.offline-bar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 30;
+  padding: calc(var(--safe-top) + var(--space-2)) var(--gutter) var(--space-2);
+  text-align: center;
+  font-weight: 600;
+  color: #fff;
+  background: var(--warning);
+}
+
+.day-pager {
+  touch-action: pan-y;     /* vertical scrolling stays with the page */
+}
+
+.sheet-grabber {
+  width: 2.25rem;
+  height: 5px;
+  margin: calc(var(--space-4) * -1) auto var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--label-3);
 }

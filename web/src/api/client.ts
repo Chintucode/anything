@@ -4,6 +4,7 @@ import type {
   PreviewResponse,
   ProgressResponse,
   TodayResponse,
+  WeekResponse,
 } from './types'
 
 /**
@@ -47,6 +48,20 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T
 }
 
+/** For endpoints that answer in plain text, like the AI report. */
+async function requestText(path: string): Promise<string> {
+  let res: Response
+  try {
+    res = await fetch(`/api${path}`, { headers: { Accept: 'text/plain' } })
+  } catch {
+    throw new ApiError(0, "Can't reach the server. Check that it's running.", null)
+  }
+  if (!res.ok) {
+    throw new ApiError(res.status, 'Could not build the report.', null)
+  }
+  return res.text()
+}
+
 /** Parse preview: 422 is an expected answer (the plan has mistakes), not a failure. */
 async function parse(text: string): Promise<PreviewResponse> {
   try {
@@ -67,10 +82,19 @@ export const api = {
     request<PlanDetail>('/plans', { method: 'POST', body: JSON.stringify({ text, startDate }) }),
   deletePlan: (id: number) => request<void>(`/plans/${id}`, { method: 'DELETE' }),
   today: (planId: number, date: string) => request<TodayResponse>(`/plans/${planId}/today?date=${date}`),
+  report: (planId: number, date: string) => requestText(`/plans/${planId}/report?date=${date}`),
+  week: (planId: number, date: string) => request<WeekResponse>(`/plans/${planId}/week?date=${date}`),
   progress: (planId: number, date: string) => request<ProgressResponse>(`/plans/${planId}/progress?date=${date}`),
-  setCompletion: (planId: number, itemId: number, date: string, done: boolean) =>
-    request<{ itemId: number; date: string; done: boolean }>(`/plans/${planId}/completions`, {
+  setSkipped: (planId: number, date: string, skipped: boolean) =>
+    request<{ planId: number; date: string; skipped: boolean }>(`/plans/${planId}/skips`, {
       method: 'PUT',
-      body: JSON.stringify({ itemId, date, done }),
+      body: JSON.stringify({ date, skipped }),
     }),
+  shiftPlan: (planId: number, days: number) =>
+    request<PlanDetail>(`/plans/${planId}/shift`, { method: 'POST', body: JSON.stringify({ days }) }),
+  setCompletion: (planId: number, itemId: number, date: string, done: boolean, actualReps?: number | null) =>
+    request<{ itemId: number; date: string; done: boolean; actualReps: number | null }>(
+      `/plans/${planId}/completions`,
+      { method: 'PUT', body: JSON.stringify({ itemId, date, done, actualReps: actualReps ?? null }) },
+    ),
 }
