@@ -7,6 +7,7 @@ import App from './App.tsx'
 import './index.css'
 import './styles/shell.css'
 import './styles/newplan.css'
+import './styles/today.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {

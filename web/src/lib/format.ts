@@ -14,9 +14,9 @@ export function shortDay(day: Weekday): string {
   return SHORT_DAYS[day]
 }
 
-/** 45 → "45s", 90 → "1 min 30s", 120 → "2 min". */
+/** 45 → "45s", 90 → "90s", 120 → "2 min", 150 → "2 min 30s". Short rests read better in seconds. */
 export function formatSeconds(seconds: number): string {
-  if (seconds < 60) {
+  if (seconds < 120) {
     return `${seconds}s`
   }
   const min = Math.floor(seconds / 60)

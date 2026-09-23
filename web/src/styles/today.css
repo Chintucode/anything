@@ -1,0 +1,253 @@
+/* Today screen: workout header, exercise rows, rest / not-started / finished cards. */
+
+.plan-switcher {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-3);
+  scrollbar-width: none;
+}
+
+.plan-switcher::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- Workout header ---------- */
+.workout-header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-5) var(--space-6);
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+
+.workout-header-text {
+  flex: 1;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.day-done {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-pill);
+  color: #fff;
+  background: var(--success);
+}
+
+.workout-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--fill);
+}
+
+.workout-progress-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: var(--accent);
+}
+
+/* ---------- Exercise rows ---------- */
+.exercise-items {
+  overflow: hidden;
+}
+
+.exercise-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 3.5rem;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+}
+
+.exercise-item:active {
+  background: var(--fill);
+}
+
+.exercise-item[data-done='true'] .exercise-name {
+  color: var(--label-2);
+  text-decoration: line-through;
+  text-decoration-color: var(--label-3);
+}
+
+.exercise-item[data-done='true'] .exercise-meta {
+  opacity: 0.5;
+}
+
+.check {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--label-3);
+  color: #fff;
+}
+
+.exercise-item[data-done='true'] .check {
+  border-color: var(--accent);
+}
+
+.check-fill {
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.check-mark {
+  position: relative;
+}
+
+/* ---------- Other states ---------- */
+.state-card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+  justify-items: center;
+}
+
+.next-up {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  text-align: left;
+}
+
+.state-action {
+  margin-top: var(--space-4);
+}
+
+.done-note {
+  margin-top: var(--space-4);
+  text-align: center;
+  color: var(--success);
+}
+
+/* ---------- Progress ---------- */
+.progress-card {
+  margin-top: var(--space-4);
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-5);
+}
+
+.progress-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.ring {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+
+.ring svg {
+  position: absolute;
+  inset: 0;
+}
+
+.ring-value {
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+}
+
+.hero-number {
+  font: 700 1.75rem/1 var(--font-rounded);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-stats {
+  flex: 1;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.progress-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Bars: one bar per week, track = scheduled, fill = done */
+.week-bars {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.bars-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;                 /* surface gap between adjacent bars */
+  height: 4.5rem;
+}
+
+.bar-slot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  height: 100%;
+  padding: 0;
+}
+
+.bar-track {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  flex: 1;
+  border-radius: 4px;       /* rounded data-ends */
+  background: var(--fill);
+  overflow: hidden;
+}
+
+.bar-now {
+  outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  outline-offset: 1px;
+}
+
+.bar-fill {
+  width: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+}
+
+.bar-label {
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-picked .bar-label {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.bars-caption {
+  text-align: center;
+  min-height: 1.2em;
+}

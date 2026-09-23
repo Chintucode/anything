@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from './client'
+import type { TodayResponse } from './types'
 
 /**
  * Query keys in one place, so screens and mutations invalidate the same things.
@@ -61,5 +62,45 @@ export function useDeletePlan() {
   return useMutation({
     mutationFn: (id: number) => api.deletePlan(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.plans }),
+  })
+}
+
+/**
+ * Ticking an exercise. The screen updates the moment you tap: the change goes
+ * into the cache first, the request follows, and if it fails the tick is rolled
+ * back. Waiting for the server before showing a tick feels dead.
+ */
+export function useSetCompletion(planId: number, date: string) {
+  const queryClient = useQueryClient()
+  const key = keys.today(planId, date)
+
+  return useMutation({
+    mutationFn: ({ itemId, done }: { itemId: number; done: boolean }) =>
+      api.setCompletion(planId, itemId, date, done),
+
+    onMutate: async ({ itemId, done }) => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<TodayResponse>(key)
+      if (previous?.items) {
+        const items = previous.items.map((i) => (i.id === itemId ? { ...i, done } : i))
+        queryClient.setQueryData<TodayResponse>(key, {
+          ...previous,
+          items,
+          doneCount: items.filter((i) => i.done).length,
+        })
+      }
+      return { previous }
+    },
+
+    onError: (_error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(key, context.previous)
+      }
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: key })
+      queryClient.invalidateQueries({ queryKey: keys.progress(planId, date) })
+    },
   })
 }
