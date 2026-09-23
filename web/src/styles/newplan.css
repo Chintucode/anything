@@ -1,0 +1,290 @@
+/* Add-a-plan screen: steps, paste box, preview, errors. */
+
+.navbar-back {
+  position: absolute;
+  left: max(var(--space-2), calc((100vw - var(--content-max)) / 2));
+  bottom: 0;
+  height: var(--navbar-height);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: var(--space-2);
+  color: var(--accent);
+  pointer-events: auto;
+}
+
+.btn-small {
+  min-height: 2.25rem;
+  padding: 0 var(--space-3);
+  font: var(--text-subhead);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------- Steps ---------- */
+.steps {
+  padding: var(--space-2) 0;
+  margin-bottom: var(--space-4);
+}
+
+.steps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.steps-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+.steps-list li + li {
+  border-top: 0.5px solid var(--separator);
+}
+
+.step-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--fill);
+  color: var(--label-2);
+  font-weight: 700;
+}
+
+.step-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.copy-btn {
+  flex: none;
+  min-width: 6.25rem;
+}
+
+.copy-btn-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ---------- Paste box ---------- */
+.paste-card {
+  overflow: hidden;
+}
+
+.paste-area {
+  display: block;
+  width: 100%;
+  min-height: 38vh;
+  max-height: 60vh;
+  padding: var(--space-4);
+  border: 0;
+  resize: vertical;
+  background: transparent;
+  color: var(--label);
+  font: 400 1rem/1.5 ui-monospace, "SF Mono", Menlo, monospace;  /* 16px: no iOS zoom on focus */
+  letter-spacing: 0;
+  tab-size: 2;
+}
+
+.paste-area::placeholder {
+  color: var(--label-3);
+}
+
+.paste-area:focus {
+  outline: none;
+}
+
+.paste-card:focus-within {
+  box-shadow: var(--shadow-card), 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.paste-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-top: 0.5px solid var(--separator);
+}
+
+.file-btn {
+  cursor: pointer;
+}
+
+.status-slot {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.status-pill {
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  background: var(--fill);
+  color: var(--label-2);
+}
+
+.status-pill.tone-success {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+
+.status-pill.tone-warning {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+}
+
+.inline-error {
+  margin-top: var(--space-3);
+  color: var(--danger);
+  text-align: center;
+}
+
+/* ---------- Errors ---------- */
+.errors {
+  margin-top: var(--space-4);
+  overflow: hidden;
+}
+
+.errors-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+
+.warning-icon {
+  color: var(--warning);
+  display: grid;
+}
+
+.error-row {
+  width: 100%;
+  text-align: left;
+  align-items: flex-start;
+}
+
+.error-row:active {
+  background: var(--fill);
+}
+
+.line-chip {
+  flex: none;
+  margin-top: 1px;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--fill);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.error-message {
+  flex: 1;
+}
+
+.errors-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-top: 0.5px solid var(--separator);
+}
+
+/* ---------- Preview ---------- */
+.preview {
+  display: grid;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+
+.preview-summary {
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-1);
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-value {
+  font: 700 1.5rem/1.1 var(--font-rounded);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.section-label {
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0 var(--space-4) var(--space-2);
+}
+
+.day-row {
+  width: 100%;
+  text-align: left;
+}
+
+.day-row:active {
+  background: var(--fill);
+}
+
+.day-pill {
+  flex: none;
+  width: 2.5rem;
+  padding: 0.2rem 0;
+  text-align: center;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.exercise-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--space-2);
+  overflow: hidden;
+}
+
+.exercise-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4) var(--space-2) calc(var(--space-4) + 2.5rem + var(--space-3));
+}
+
+.exercise-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.next-note {
+  margin-top: var(--space-4);
+  text-align: center;
+}

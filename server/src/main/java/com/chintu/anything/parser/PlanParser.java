@@ -25,7 +25,8 @@ public class PlanParser {
     public static final int MAX_WEEKS = 52;
     public static final Set<String> SUPPORTED_CATEGORIES = Set.of("workout");
 
-    private static final String HEADER_FENCE = "---";
+    /** The --- lines around the header. AI models often write a longer row of dashes, so accept 3 or more. */
+    private static final Pattern HEADER_FENCE = Pattern.compile("^-{3,}$");
     /** Required header keys, in the order errors are reported. */
     private static final List<String> REQUIRED_KEYS = List.of("anything", "title", "category", "weeks");
 
@@ -91,7 +92,7 @@ public class PlanParser {
         PlanHeader header = null;
 
         int first = firstNonBlank(lines, 0);
-        if (first >= 0 && lines[first].trim().equals(HEADER_FENCE)) {
+        if (first >= 0 && isFence(lines[first])) {
             int close = findHeaderClose(lines, first + 1);
             if (close < 0) {
                 errors.add(new ParseError(first + 1,
@@ -440,11 +441,15 @@ public class PlanParser {
 
     private static int findHeaderClose(String[] lines, int from) {
         for (int i = from; i < lines.length; i++) {
-            if (lines[i].trim().equals(HEADER_FENCE)) {
+            if (isFence(lines[i])) {
                 return i;
             }
         }
         return -1;
+    }
+
+    private static boolean isFence(String line) {
+        return HEADER_FENCE.matcher(line.trim()).matches();
     }
 
     private static Integer parsePositiveInt(String value) {

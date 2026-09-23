@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import './styles/shell.css'
+import './styles/newplan.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {

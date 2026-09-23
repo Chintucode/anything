@@ -133,6 +133,15 @@ class PlanParserTest {
     }
 
     @Test
+    void acceptsALongerRowOfDashesAroundTheHeader() {
+        // AI models often close the header with "-------" instead of "---".
+        ParseResult result = parser.parse(HEADER.replace("---\n", "-------\n") + BODY);
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.plan().header().title()).isEqualTo("Test Plan");
+    }
+
+    @Test
     void handlesWindowsLineEndings() {
         assertThat(parser.parse((HEADER + BODY).replace("\n", "\r\n")).errors()).isEmpty();
     }

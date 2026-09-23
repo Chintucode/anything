@@ -32,3 +32,18 @@ export function useProgress(planId: number | undefined, date: string) {
     enabled: planId !== undefined,
   })
 }
+
+/**
+ * Live preview of pasted text. Keyed by the text itself, so if you keep typing,
+ * an older, slower answer can never overwrite a newer one.
+ */
+export function useParsePreview(text: string) {
+  return useQuery({
+    queryKey: ['parse', text],
+    queryFn: () => api.parse(text),
+    enabled: text.trim().length > 0,
+    staleTime: Infinity,          // same text always parses the same way
+    placeholderData: (previous) => previous, // keep the last preview on screen while checking
+    retry: false,
+  })
+}
