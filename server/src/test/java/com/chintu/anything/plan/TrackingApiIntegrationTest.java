@@ -73,6 +73,13 @@ class TrackingApiIntegrationTest {
         return ids;
     }
 
+    private ResultActions rest(String date, boolean rested) throws Exception {
+        String body = "{\"date\": \"" + date + "\", \"rested\": " + rested + "}";
+        return mvc.perform(put("/api/plans/" + planId + "/rests")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body));
+    }
+
     private ResultActions tick(long itemId, String date, boolean done) throws Exception {
         String body = "{\"itemId\": " + itemId + ", \"date\": \"" + date + "\", \"done\": " + done + "}";
         return mvc.perform(put("/api/plans/" + planId + "/completions")
@@ -204,7 +211,7 @@ class TrackingApiIntegrationTest {
         progress("2026-09-25")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.percent").value(0))
-                .andExpect(jsonPath("$.scheduled").value(0))
+                .andExpect(jsonPath("$.dueSoFar").value(0))
                 .andExpect(jsonPath("$.streak").value(0))
                 .andExpect(jsonPath("$.totalItems").value(192))     // 12 weeks x 16
                 .andExpect(jsonPath("$.weeks.length()").value(12))
@@ -212,7 +219,7 @@ class TrackingApiIntegrationTest {
     }
 
     @Test
-    void unfinishedTodayDoesNotLowerThePercentage() throws Exception {
+    void todayCountsAsSoonAsItIsDue() throws Exception {
         // Monday fully done; Tuesday (today) half done.
         tickAll(itemIds(MON), MON);
         List<Long> tuesday = itemIds(TUE);
@@ -221,9 +228,26 @@ class TrackingApiIntegrationTest {
 
         progress(TUE)
                 .andExpect(jsonPath("$.completed").value(6))
-                .andExpect(jsonPath("$.scheduled").value(6))    // 4 from Monday + 2 ticked today
-                .andExpect(jsonPath("$.percent").value(100))
-                .andExpect(jsonPath("$.streak").value(1));      // Monday counts; today isn't over
+                .andExpect(jsonPath("$.dueSoFar").value(8))     // 4 on Monday, 4 more today
+                .andExpect(jsonPath("$.percent").value(75))     // and the percentage says so
+                .andExpect(jsonPath("$.streak").value(1));      // the streak stays forgiving, though
+    }
+
+    @Test
+    void theCountAndThePercentageAgree() throws Exception {
+        // Nothing ticked at all on the first morning: 0 of 4, not 0 of 0.
+        progress(MON)
+                .andExpect(jsonPath("$.completed").value(0))
+                .andExpect(jsonPath("$.dueSoFar").value(4))
+                .andExpect(jsonPath("$.percent").value(0));
+
+        List<Long> monday = itemIds(MON);
+        tick(monday.get(0), MON, true);
+
+        progress(MON)
+                .andExpect(jsonPath("$.completed").value(1))
+                .andExpect(jsonPath("$.dueSoFar").value(4))     // denominator stays put as you tick
+                .andExpect(jsonPath("$.percent").value(25));    // the ring is the fraction, drawn
     }
 
     @Test
@@ -235,7 +259,7 @@ class TrackingApiIntegrationTest {
 
         progress(WED)
                 .andExpect(jsonPath("$.completed").value(6))
-                .andExpect(jsonPath("$.scheduled").value(8))
+                .andExpect(jsonPath("$.dueSoFar").value(8))     // Wednesday is a rest day: nothing due
                 .andExpect(jsonPath("$.percent").value(75))
                 .andExpect(jsonPath("$.streak").value(0))       // Tuesday broke it
                 .andExpect(jsonPath("$.weeks[0].completed").value(6));
@@ -258,8 +282,63 @@ class TrackingApiIntegrationTest {
 
         progress(WED)
                 .andExpect(jsonPath("$.completed").value(4))
-                .andExpect(jsonPath("$.scheduled").value(8))
+                .andExpect(jsonPath("$.dueSoFar").value(8))
                 .andExpect(jsonPath("$.percent").value(50))
                 .andExpect(jsonPath("$.streak").value(1));
+    }
+
+    // ----------------------------------------------------------- rest days
+
+    @Test
+    void aRestDayCanBeMarkedAsTakenAndUnmarked() throws Exception {
+        mvc.perform(get("/api/plans/" + planId + "/today").param("date", WED))
+                .andExpect(jsonPath("$.status").value("REST"))
+                .andExpect(jsonPath("$.rested").value(false));
+
+        rest(WED, true).andExpect(status().isOk())
+                .andExpect(jsonPath("$.rested").value(true));
+
+        mvc.perform(get("/api/plans/" + planId + "/today").param("date", WED))
+                .andExpect(jsonPath("$.rested").value(true));
+
+        rest(WED, true).andExpect(status().isOk());      // idempotent: no second row
+
+        rest(WED, false).andExpect(status().isOk());
+        mvc.perform(get("/api/plans/" + planId + "/today").param("date", WED))
+                .andExpect(jsonPath("$.rested").value(false));
+    }
+
+    @Test
+    void aTrainingDayCannotBeRested() throws Exception {
+        rest(MON, true)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("2026-09-28 is a training day, not a rest day."));
+    }
+
+    @Test
+    void aDayOutsideThePlanCannotBeRested() throws Exception {
+        rest("2026-09-20", true)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("2026-09-20 isn't part of this plan."));
+    }
+
+    @Test
+    void restingChangesNoNumbers() throws Exception {
+        tickAll(itemIds(MON), MON);
+        tickAll(itemIds(TUE), TUE);
+        rest(WED, true);
+
+        progress(WED)                                   // exactly as it reads without the rest tick
+                .andExpect(jsonPath("$.completed").value(8))
+                .andExpect(jsonPath("$.dueSoFar").value(8))
+                .andExpect(jsonPath("$.percent").value(100))
+                .andExpect(jsonPath("$.streak").value(2));
+    }
+
+    @Test
+    void aTrainingDayNeverReportsRested() throws Exception {
+        mvc.perform(get("/api/plans/" + planId + "/today").param("date", MON))
+                .andExpect(jsonPath("$.status").value("TRAINING"))
+                .andExpect(jsonPath("$.rested").doesNotExist());
     }
 }

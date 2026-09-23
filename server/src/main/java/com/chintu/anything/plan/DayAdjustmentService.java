@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.chintu.anything.plan.PlanResponses.PlanDetail;
+import com.chintu.anything.schedule.PlanCalendar;
 
 /**
  * The two answers to a missed day.
@@ -17,16 +18,21 @@ import com.chintu.anything.plan.PlanResponses.PlanDetail;
  *
  * <p><b>Shift</b> moves the whole plan later (or earlier, with a negative number),
  * so today becomes the day you missed. Plans that punish one missed day get deleted.
+ *
+ * <p>Also here: marking a rest day as taken, which is the opposite gesture — the
+ * plan asked for nothing and you gave it exactly that.
  */
 @Service
 public class DayAdjustmentService {
 
     private final PlanRepository plans;
     private final SkippedDayRepository skips;
+    private final RestedDayRepository rests;
 
-    public DayAdjustmentService(PlanRepository plans, SkippedDayRepository skips) {
+    public DayAdjustmentService(PlanRepository plans, SkippedDayRepository skips, RestedDayRepository rests) {
         this.plans = plans;
         this.skips = skips;
+        this.rests = rests;
     }
 
     /** Idempotent: skipping twice leaves one row, unskipping something never skipped is fine. */
@@ -46,6 +52,33 @@ public class DayAdjustmentService {
             existing.ifPresent(skips::delete);
         }
         return new SkipResponse(planId, date, skipped);
+    }
+
+    /**
+     * "I took my rest day." Only valid on a day the plan left empty on purpose:
+     * ticking a rest day you were never given would be a lie in the data.
+     * Idempotent, like skipping.
+     */
+    @Transactional
+    public RestResponse setRested(long planId, LocalDate date, boolean rested) {
+        Plan plan = find(planId);
+
+        if (PlanSchedule.locate(plan, date).status() != PlanCalendar.Status.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    date + " isn't part of this plan.");
+        }
+        if (PlanSchedule.dayOn(plan, date).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    date + " is a training day, not a rest day.");
+        }
+
+        var existing = rests.findByPlanIdAndRestedOn(planId, date);
+        if (rested && existing.isEmpty()) {
+            rests.save(new RestedDay(plan, date));
+        } else if (!rested) {
+            existing.ifPresent(rests::delete);
+        }
+        return new RestResponse(planId, date, rested);
     }
 
     /** Moves every remaining day of the plan by {@code days} (negative moves it earlier). */
@@ -68,5 +101,8 @@ public class DayAdjustmentService {
     }
 
     public record SkipResponse(Long planId, LocalDate date, boolean skipped) {
+    }
+
+    public record RestResponse(Long planId, LocalDate date, boolean rested) {
     }
 }

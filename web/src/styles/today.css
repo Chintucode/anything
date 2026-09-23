@@ -16,9 +16,9 @@
 .workout-header {
   position: relative;
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-5) var(--space-5) var(--space-6);
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
   overflow: hidden;
   margin-bottom: var(--space-4);
 }
@@ -29,30 +29,32 @@
   gap: var(--space-1);
 }
 
-.day-done {
+.week-ring-count {
+  font: 700 1.5rem/1 var(--font-rounded);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.week-ring-total {
+  font-size: 0.7em;
+  color: var(--label-2);
+}
+
+.day-ring-count {
+  font: 700 1.25rem/1 var(--font-rounded);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-ring-total {
+  font-size: 0.8em;
+  color: var(--label-2);
+}
+
+.day-ring-check {
   display: grid;
   place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: var(--radius-pill);
-  color: #fff;
-  background: var(--success);
-}
-
-.workout-progress {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 4px;
-  background: var(--fill);
-}
-
-.workout-progress-fill {
-  height: 100%;
-  width: 100%;
-  transform-origin: left center;
-  background: var(--accent);
+  color: var(--success);
 }
 
 /* ---------- Exercise rows ---------- */
@@ -136,6 +138,26 @@
 
 .state-action {
   margin-top: var(--space-4);
+}
+
+.rest-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 11rem;
+  background: var(--fill);
+  color: var(--label);
+  font-weight: 600;
+}
+
+.rest-btn-on {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.rest-check {
+  display: grid;
+  place-items: center;
 }
 
 .done-note {
@@ -326,6 +348,42 @@
 .log-chips .chip {
   min-width: 2.25rem;
   font-variant-numeric: tabular-nums;
+}
+
+.progress-eyebrow {
+  /* The card already has its own padding; pull the ring up close underneath. */
+  margin-bottom: calc(var(--space-1) - var(--space-5));
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+
+.log-custom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.log-input {
+  width: 4.5rem;
+  min-height: 1.9rem;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--fill);
+  color: var(--label);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.log-input::placeholder {
+  color: var(--label-3);
+}
+
+.log-input::-webkit-outer-spin-button,
+.log-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
 }
 
 .log-note {

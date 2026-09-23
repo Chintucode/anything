@@ -107,6 +107,8 @@ export interface TodayResponse {
   next?: { date: string; weekday: Weekday; title: string }
   /** The most recent training day left unfinished, if there is one. */
   missed?: { date: string; weekday: Weekday; title: string; done: number; total: number }
+  /** Rest days only: true once the day has been marked as taken. */
+  rested?: boolean
 }
 
 export interface WeekDay {
@@ -131,7 +133,8 @@ export interface ProgressResponse {
   date: string
   percent: number
   completed: number
-  scheduled: number
+  /** Everything the plan asked for up to and including today. `percent` is completed ÷ this. */
+  dueSoFar: number
   streak: number
   totalItems: number
   weeks: { week: number; scheduled: number; completed: number }[]

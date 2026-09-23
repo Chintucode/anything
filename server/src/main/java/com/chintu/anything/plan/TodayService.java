@@ -34,11 +34,14 @@ public class TodayService {
     private final PlanRepository plans;
     private final CompletionRepository completions;
     private final SkippedDayRepository skips;
+    private final RestedDayRepository rests;
 
-    public TodayService(PlanRepository plans, CompletionRepository completions, SkippedDayRepository skips) {
+    public TodayService(PlanRepository plans, CompletionRepository completions, SkippedDayRepository skips,
+            RestedDayRepository rests) {
         this.plans = plans;
         this.completions = completions;
         this.skips = skips;
+        this.rests = rests;
     }
 
     @Transactional(readOnly = true)
@@ -130,6 +133,11 @@ public class TodayService {
             doneCount = (int) items.stream().filter(TodayItem::done).count();
         }
 
+        // Only a rest day can be "taken"; on any other day the flag is absent, not false.
+        Boolean rested = status == Status.REST
+                ? rests.existsByPlanIdAndRestedOn(plan.getId(), date)
+                : null;
+
         return new TodayResponse(
                 plan.getId(),
                 plan.getTitle(),
@@ -144,6 +152,7 @@ public class TodayService {
                 doneCount,
                 daysUntilStart,
                 next,
-                missedDay(plan, date));
+                missedDay(plan, date),
+                rested);
     }
 }

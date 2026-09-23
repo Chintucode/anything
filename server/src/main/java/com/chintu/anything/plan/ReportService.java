@@ -70,10 +70,10 @@ public class ReportService {
         out.append("\n\n");
 
         out.append("PROGRESS\n");
-        out.append("- ").append(progress.completed()).append(" of ").append(progress.scheduled())
+        out.append("- ").append(progress.completed()).append(" of ").append(progress.dueSoFar())
                 .append(" scheduled exercises done so far (").append(progress.percent()).append("%)\n");
         out.append("- Current streak: ").append(progress.streak())
-                .append(progress.streak() == 1 ? " training day\n" : " training days\n");
+                .append(progress.streak() == 1 ? " session\n" : " sessions in a row\n");
         out.append("- Week by week (done/scheduled): ").append(weekLine(progress.weeks())).append("\n\n");
 
         List<String> shortfalls = shortfalls(plan, date);

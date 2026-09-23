@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.chintu.anything.plan.CompletionService.CompletionResponse;
+import com.chintu.anything.plan.DayAdjustmentService.RestResponse;
 import com.chintu.anything.plan.DayAdjustmentService.SkipResponse;
 import com.chintu.anything.plan.PlanResponses.PlanDetail;
 
@@ -22,6 +23,7 @@ import jakarta.validation.Valid;
  * PUT  /api/plans/{id}/completions             tick or untick one exercise on one date
  * GET  /api/plans/{id}/progress[?date=...]     percent, streak and weekly bars
  * PUT  /api/plans/{id}/skips                   write off (or restore) one training day
+ * PUT  /api/plans/{id}/rests                   mark a rest day as taken (or undo that)
  * POST /api/plans/{id}/shift                   move the whole plan later or earlier
  * GET  /api/plans/{id}/report[?date=...]       plain-text progress report to paste back into an AI
  */
@@ -50,6 +52,12 @@ public class TrackingController {
     @PutMapping("/api/plans/{id}/skips")
     public SkipResponse setSkipped(@PathVariable long id, @Valid @RequestBody SkipRequest request) {
         return adjustments.setSkipped(id, request.date(), request.skipped());
+    }
+
+    /** "I rested, that's done." Only on days the plan left empty. */
+    @PutMapping("/api/plans/{id}/rests")
+    public RestResponse setRested(@PathVariable long id, @Valid @RequestBody RestRequest request) {
+        return adjustments.setRested(id, request.date(), request.rested());
     }
 
     /** "Push everything back a day." Negative days pull the plan earlier. */

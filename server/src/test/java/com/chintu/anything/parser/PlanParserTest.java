@@ -543,4 +543,79 @@ class PlanParserTest {
                     assertThat(e.message()).contains(message);
                 });
     }
+
+    // ------------------------------------------- what models write by reflex
+
+    /**
+     * The prompt asks for a clean plan. These are the things a model adds anyway,
+     * and none of them is worth making a person fix by hand.
+     */
+    @Nested
+    class AiTidiness {
+
+        @Test
+        void ignoresACodeFenceWrappedAroundThePlan() {
+            ParseResult result = parser.parse("```markdown\n" + HEADER + BODY + "```\n");
+
+            assertThat(result.errors()).isEmpty();
+            assertThat(result.plan().phases()).hasSize(1);
+        }
+
+        @Test
+        void stripsBoldFromHeadingsAndNames() {
+            ParseResult result = parser.parse(HEADER
+                    + "## **Weeks 1-8: All**\n"
+                    + "### **Mon: Push**\n"
+                    + "- **Push-ups** | 3x10\n");
+
+            assertThat(result.errors()).isEmpty();
+            ParsedDay day = result.plan().phases().get(0).days().get(0);
+            assertThat(day.title()).isEqualTo("Push");
+            assertThat(day.items().get(0).name()).isEqualTo("Push-ups");
+        }
+
+        @Test
+        void acceptsSetsAndRepsWrittenOutInWords() {
+            ParseResult result = parser.parse(HEADER
+                    + "## Weeks 1-8: All\n### Mon: Push\n- Push-ups | 3 sets x 10 reps\n");
+
+            assertThat(result.errors()).isEmpty();
+            ParsedItem item = result.plan().phases().get(0).days().get(0).items().get(0);
+            assertThat(item.sets()).isEqualTo(3);
+            assertThat(item.reps().kind()).isEqualTo(Reps.Kind.COUNT);
+            assertThat(item.reps().value()).isEqualTo(10);
+            assertThat(item.reps().detail()).isEmpty();
+        }
+
+        @Test
+        void acceptsThreeSetsOfTen() {
+            ParseResult result = parser.parse(HEADER
+                    + "## Weeks 1-8: All\n### Mon: Push\n- Plank | 3 sets of 30s\n");
+
+            assertThat(result.errors()).isEmpty();
+            ParsedItem item = result.plan().phases().get(0).days().get(0).items().get(0);
+            assertThat(item.sets()).isEqualTo(3);
+            assertThat(item.reps().kind()).isEqualTo(Reps.Kind.SECONDS);
+            assertThat(item.reps().value()).isEqualTo(30);
+        }
+
+        @Test
+        void acceptsFullWeekdayNames() {
+            ParseResult result = parser.parse(HEADER
+                    + "## Weeks 1-8: All\n### Wednesday: Legs\n- Squats | 3x15\n");
+
+            assertThat(result.errors()).isEmpty();
+            assertThat(result.plan().phases().get(0).days().get(0).weekday()).isEqualTo(DayOfWeek.WEDNESDAY);
+        }
+
+        @Test
+        void aLineNumberStillPointsAtTheRightLineAfterTidying() {
+            ParseResult result = parser.parse("```\n" + HEADER
+                    + "## Weeks 1-8: All\n### Mon: Push\n- Push-ups | three by ten\n```\n");
+
+            // Fence on line 1, header lines 2-7, phase 8, day 9, the bad exercise on 10.
+            assertThat(result.errors().get(0).line()).isEqualTo(10);
+            assertThat(result.errors().get(0).message()).contains("isn't sets x reps");
+        }
+    }
 }

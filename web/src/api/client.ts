@@ -92,6 +92,12 @@ export const api = {
     }),
   shiftPlan: (planId: number, days: number) =>
     request<PlanDetail>(`/plans/${planId}/shift`, { method: 'POST', body: JSON.stringify({ days }) }),
+  setRested: (planId: number, date: string, rested: boolean) =>
+    request<{ planId: number; date: string; rested: boolean }>(
+      `/plans/${planId}/rests`,
+      { method: 'PUT', body: JSON.stringify({ date, rested }) },
+    ),
+
   setCompletion: (planId: number, itemId: number, date: string, done: boolean, actualReps?: number | null) =>
     request<{ itemId: number; date: string; done: boolean; actualReps: number | null }>(
       `/plans/${planId}/completions`,

@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
-import type { TodayItem } from '../api/types'
+import type { Reps, TodayItem } from '../api/types'
 import { formatSeconds, formatSetsReps } from '../lib/format'
 import { spring } from '../motion/springs'
 
@@ -19,7 +19,6 @@ type Props = {
  */
 export function ExerciseRow({ item, onToggle, onLogReps }: Props) {
   const [logging, setLogging] = useState(false)
-  const planned = item.reps.value ?? 0
 
   function toggle() {
     // A short tap on Android; iOS ignores it. Fires with the visual change, not after.
@@ -27,7 +26,9 @@ export function ExerciseRow({ item, onToggle, onLogReps }: Props) {
     onToggle(!item.done)
   }
 
-  const canLog = item.done && item.reps.kind === 'COUNT'
+  // Anything with a number attached can be logged: reps, a timed hold, or a max
+  // set. Only free text ("as many as feels right") has nothing to count.
+  const canLog = item.done && item.reps.kind !== 'TEXT'
 
   return (
     <div className="exercise-wrap">
@@ -56,7 +57,7 @@ export function ExerciseRow({ item, onToggle, onLogReps }: Props) {
 
       {canLog && (
         <button className="log-toggle t-caption" onClick={() => setLogging((v) => !v)} aria-expanded={logging}>
-          {item.actualReps != null ? `did ${item.actualReps}` : 'log actual'}
+          {item.actualReps != null ? `did ${showValue(item.actualReps, item.reps)}` : 'log actual'}
         </button>
       )}
 
@@ -69,23 +70,7 @@ export function ExerciseRow({ item, onToggle, onLogReps }: Props) {
             exit={{ height: 0, opacity: 0 }}
             transition={spring.default}
           >
-            <div className="log-row">
-              <span className="t-footnote secondary">Actually did</span>
-              <div className="log-chips">
-                {repOptions(planned, item.actualReps ?? null).map((n) => (
-                  <button
-                    key={n}
-                    className={`chip t-footnote${item.actualReps === n ? ' chip-on' : ''}`}
-                    onClick={() => { onLogReps(n === planned ? null : n); setLogging(false) }}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="t-caption tertiary log-note">
-              Plan says {planned}. Logging the real number keeps your report honest.
-            </p>
+            <LogEditor item={item} onPick={(n) => { onLogReps(n); setLogging(false) }} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -93,11 +78,90 @@ export function ExerciseRow({ item, onToggle, onLogReps }: Props) {
   )
 }
 
-/** A few sensible numbers around what the plan asked for, plus whatever was logged. */
-function repOptions(planned: number, actual: number | null): number[] {
+/**
+ * The numbers you're likely to want, one tap away, plus a box for the one we
+ * didn't guess. A timed hold steps in fives; a max set has nothing to suggest,
+ * so it opens straight onto the box.
+ */
+function LogEditor({ item, onPick }: { item: TodayItem; onPick: (reps: number | null) => void }) {
+  const planned = item.reps.value ?? 0
+  const step = item.reps.kind === 'SECONDS' ? 5 : 1
+  const options = repOptions(planned, step, item.actualReps ?? null)
+  const [custom, setCustom] = useState('')
+
+  // Reopening on a row that already has a number should start from that number.
+  useEffect(() => setCustom(''), [item.id])
+
+  function submitCustom() {
+    const n = Number(custom)
+    if (Number.isFinite(n) && n > 0) {
+      onPick(Math.round(n))
+    }
+  }
+
+  return (
+    <>
+      <div className="log-row">
+        <span className="t-footnote secondary">Actually did</span>
+        <div className="log-chips">
+          {options.map((n) => (
+            <button
+              key={n}
+              className={`chip t-footnote${item.actualReps === n ? ' chip-on' : ''}`}
+              onClick={() => onPick(item.actualReps === n ? null : n)}
+            >
+              {showValue(n, item.reps)}
+            </button>
+          ))}
+          <form
+            className="log-custom"
+            onSubmit={(e) => { e.preventDefault(); submitCustom() }}
+          >
+            <input
+              className="log-input t-footnote"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={step}
+              placeholder="other"
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+              aria-label={`Something else you did of ${item.name}`}
+            />
+            {custom !== '' && (
+              <button type="submit" className="chip t-footnote chip-on">Save</button>
+            )}
+          </form>
+        </div>
+      </div>
+      <p className="t-caption tertiary log-note">
+        {planned > 0
+          ? `Plan says ${showValue(planned, item.reps)}. `
+          : 'The plan says as many as you can. '}
+        Logging the real number keeps your report honest. Tap the same one again to clear it.
+      </p>
+    </>
+  )
+}
+
+/** 12 → "12" for reps, "40s" for a timed hold. */
+function showValue(value: number, reps: Reps): string {
+  return reps.kind === 'SECONDS' ? formatSeconds(value) : String(value)
+}
+
+/**
+ * A few sensible numbers around what the plan asked for, plus whatever was logged.
+ * Picking the planned number stores it like any other: "I did exactly what it said"
+ * is worth recording, and silently clearing it looked like the tap hadn't worked.
+ * A max set has no planned number, so it gets no guesses — just the box.
+ */
+function repOptions(planned: number, step: number, actual: number | null): number[] {
   const set = new Set<number>()
-  for (const n of [planned - 3, planned - 2, planned - 1, planned, planned + 1, planned + 2]) {
-    if (n > 0) set.add(n)
+  if (planned > 0) {
+    for (const i of [-3, -2, -1, 0, 1, 2]) {
+      const n = planned + i * step
+      if (n > 0) set.add(n)
+    }
   }
   if (actual != null) set.add(actual)
   return [...set].sort((a, b) => a - b)

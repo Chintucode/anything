@@ -12,7 +12,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  *
  * <ul>
  *   <li>TRAINING: {@code week}, {@code phaseName}, {@code dayTitle}, {@code items} and {@code doneCount} are set</li>
- *   <li>REST: a scheduled rest day; {@code next} points at the next workout</li>
+ *   <li>REST: a scheduled rest day; {@code next} points at the next workout and
+ *       {@code rested} says whether you've ticked it off</li>
  *   <li>SKIPPED: a training day you wrote off; the exercises are still listed</li>
  *   <li>NOT_STARTED: {@code daysUntilStart} and {@code next} (the first workout) are set</li>
  *   <li>FINISHED: the plan is over</li>
@@ -34,7 +35,9 @@ public record TodayResponse(
         Integer doneCount,
         Long daysUntilStart,
         NextWorkout next,
-        MissedDay missed) {
+        MissedDay missed,
+        /** Rest days only: true once you've marked the day as taken. */
+        Boolean rested) {
 
     public enum Status { TRAINING, REST, SKIPPED, NOT_STARTED, FINISHED }
 

@@ -82,12 +82,32 @@ export function useDeletePlan() {
  * Ticking an exercise. The screen updates the moment you tap: the change goes
  * into the cache first, the request follows, and if it fails the tick is rolled
  * back. Waiting for the server before showing a tick feels dead.
+ *
+ * Ticking fast, or out of order, used to lose ticks. Each save re-fetched the day
+ * when it finished, and a re-fetch started by an earlier tap could land *after* a
+ * later tap's save, bringing an answer that predated it — the row would untick
+ * itself, taking its "log actual" chip with it. So: the server's own reply patches
+ * just that row, and the full re-fetch waits until no tick is still in flight.
  */
 export function useSetCompletion(planId: number, date: string) {
   const queryClient = useQueryClient()
   const key = keys.today(planId, date)
+  // Shared by every tick on this day, so each one can tell whether it's the last.
+  const mutationKey = ['setCompletion', planId, date] as const
+
+  /** Change one row in the cached day, leaving the rest of it alone. */
+  function patchItem(itemId: number, done: boolean, actualReps: number | null) {
+    queryClient.setQueryData<TodayResponse>(key, (previous) => {
+      if (!previous?.items) {
+        return previous
+      }
+      const items = previous.items.map((i) => (i.id === itemId ? { ...i, done, actualReps } : i))
+      return { ...previous, items, doneCount: items.filter((i) => i.done).length }
+    })
+  }
 
   return useMutation({
+    mutationKey,
     mutationFn: ({ itemId, done, actualReps }: { itemId: number; done: boolean; actualReps?: number | null }) =>
       api.setCompletion(planId, itemId, date, done, actualReps),
 
@@ -99,17 +119,13 @@ export function useSetCompletion(planId: number, date: string) {
     onMutate: async ({ itemId, done, actualReps }) => {
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<TodayResponse>(key)
-      if (previous?.items) {
-        const items = previous.items.map((i) =>
-          i.id === itemId ? { ...i, done, actualReps: done ? actualReps ?? null : null } : i)
-        queryClient.setQueryData<TodayResponse>(key, {
-          ...previous,
-          items,
-          doneCount: items.filter((i) => i.done).length,
-        })
-      }
+      patchItem(itemId, done, done ? actualReps ?? null : null)
       return { previous }
     },
+
+    // The server has spoken for this row. Write its answer in, but only for this
+    // row: other rows may have ticks of their own still on the way.
+    onSuccess: (result) => patchItem(result.itemId, result.done, result.actualReps),
 
     onError: (_error, _vars, context) => {
       if (context?.previous) {
@@ -118,8 +134,13 @@ export function useSetCompletion(planId: number, date: string) {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: key })
-      queryClient.invalidateQueries({ queryKey: keys.progress(planId, date) })
+      // isMutating counts this one too, so 1 means "I'm the last one standing".
+      if (queryClient.isMutating({ mutationKey }) > 1) {
+        return
+      }
+      // Everything under ['plans', id]: this day, the week strip, and progress —
+      // which is keyed by today, not by the day being ticked.
+      queryClient.invalidateQueries({ queryKey: keys.plan(planId) })
     },
   })
 }
@@ -131,6 +152,32 @@ export function useSkipDay(planId: number) {
     mutationFn: ({ date, skipped }: { date: string; skipped: boolean }) =>
       api.setSkipped(planId, date, skipped),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.plan(planId) }),
+  })
+}
+
+/**
+ * Marking a rest day as taken. Optimistic, like a tick: the plan asked for nothing
+ * and you're confirming you gave it exactly that, so it should land instantly.
+ */
+export function useSetRested(planId: number, date: string) {
+  const queryClient = useQueryClient()
+  const key = keys.today(planId, date)
+
+  return useMutation({
+    mutationFn: (rested: boolean) => api.setRested(planId, date, rested),
+    networkMode: 'online',
+    onMutate: async (rested) => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<TodayResponse>(key)
+      queryClient.setQueryData<TodayResponse>(key, (p) => (p ? { ...p, rested } : p))
+      return { previous }
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(key, context.previous)
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.plan(planId) }),
   })
 }
 

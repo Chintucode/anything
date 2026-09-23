@@ -40,8 +40,18 @@ public class PlanParser {
             "^###\\s+(mon|tue|wed|thu|fri|sat|sun)[a-z]*\\s*(?::\\s*(.*))?$",
             Pattern.CASE_INSENSITIVE);
 
-    /** "3x10", "3 x 30s", "4×8 each leg", "1xmax". */
-    private static final Pattern SETS_REPS = Pattern.compile("^(\\d+)\\s*[x×]\\s*(\\S.*)$", Pattern.CASE_INSENSITIVE);
+    /**
+     * "3x10", "3 x 30s", "4×8 each leg", "1xmax" — and the longhand a model reaches
+     * for when it forgets the format: "3 sets x 10", "3 sets of 10".
+     */
+    private static final Pattern SETS_REPS = Pattern.compile(
+            "^(\\d+)\\s*(?:sets?)?\\s*(?:[x×]|of)\\s*(\\S.*)$", Pattern.CASE_INSENSITIVE);
+
+    /** A trailing "reps" is noise: "10 reps" and "10" are the same thing. */
+    private static final Pattern TRAILING_REPS = Pattern.compile("\\s+reps?$", Pattern.CASE_INSENSITIVE);
+
+    /** A markdown code fence, which models like to wrap the whole answer in. */
+    private static final Pattern CODE_FENCE = Pattern.compile("^\\s*(?:`{3,}|~{3,}).*$");
 
     /** "10", "10 each leg", "30s", "2m", "45 sec each side". */
     private static final Pattern REPS_VALUE = Pattern.compile(
@@ -86,6 +96,12 @@ public class PlanParser {
         }
         if (!errors.isEmpty()) {
             return ParseResult.failure(errors);
+        }
+
+        // Cosmetic noise a model adds by reflex, removed in place so line numbers
+        // in error messages still point at what the person is looking at.
+        for (int i = 0; i < lines.length; i++) {
+            lines[i] = tidy(lines[i]);
         }
 
         int bodyStart = 0;
@@ -319,7 +335,8 @@ public class PlanParser {
             errors.add(new ParseError(lineNo, "Sets must be from 1 to " + MAX_SETS + ", not " + sets + "."));
             return null;
         }
-        Reps reps = parseReps(sr.group(2).trim());
+        // "3x10 reps" and "3x10" are the same plan; the word adds nothing to track.
+        Reps reps = parseReps(TRAILING_REPS.matcher(sr.group(2).trim()).replaceFirst("").trim());
 
         Integer rest = null;
         String note = "";
@@ -384,6 +401,18 @@ public class PlanParser {
                     "This phase has no training days. Add a day like \"### Mon: Push\" under it."));
         }
         phases.add(new ParsedPhase(phase.fromWeek, phase.toWeek, phase.name, phase.line, days));
+    }
+
+    /**
+     * Strips what a model decorates its answer with: a code fence around the plan,
+     * and bold or italic marks on headings and exercise names. Neither means
+     * anything here, and both used to turn a good plan into a page of errors.
+     */
+    private static String tidy(String line) {
+        if (CODE_FENCE.matcher(line).matches()) {
+            return "";   // blank, so it's skipped like any other empty line
+        }
+        return line.replace("**", "").replace("__", "");
     }
 
     private static boolean isBullet(String line) {

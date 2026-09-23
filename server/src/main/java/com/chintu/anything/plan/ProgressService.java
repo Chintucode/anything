@@ -21,13 +21,18 @@ import com.chintu.anything.schedule.PlanCalendar.Position;
 /**
  * Progress numbers for a plan on a given date.
  *
- * <p><b>Today never counts against you.</b> Past days count in full. For today, only
- * what's already ticked is counted, on both sides of the fraction. So at 7am, before
- * your workout, your percentage hasn't dropped; each tick can only raise it.
+ * <p>One fraction, one meaning: {@code completed} ÷ {@code dueSoFar}, where dueSoFar is
+ * everything the plan asked for up to and including today. It dips in the morning and
+ * climbs back as the day is worked through.
  *
- * <p>Same idea for the streak: an unfinished today doesn't break it, because the
- * day isn't over yet. A past training day that wasn't fully done does break it,
- * unless it was skipped — a skipped day stops counting altogether.
+ * <p>An earlier version excluded today's unticked exercises from both sides, so that a
+ * morning couldn't lower the number. The result was a number that couldn't move at all
+ * for anyone keeping up — always 100, whatever you did. Today's own progress now has its
+ * own ring on the day's card, which is where that gentleness belongs.
+ *
+ * <p>The streak stays forgiving: an unfinished today doesn't break it, because the day
+ * isn't over yet. A past training day that wasn't fully done does break it, unless it
+ * was skipped — a skipped day stops counting altogether.
  */
 @Service
 public class ProgressService {
@@ -62,8 +67,8 @@ public class ProgressService {
 
         int[] weekScheduled = new int[plan.getWeeks() + 1];
         int[] weekCompleted = new int[plan.getWeeks() + 1];
-        int scheduledSoFar = 0;
         int completedSoFar = 0;
+        int dueSoFar = 0;
         int totalItems = 0;
 
         for (LocalDate d = first; !d.isAfter(last); d = d.plusDays(1)) {
@@ -82,12 +87,9 @@ public class ProgressService {
             weekScheduled[pos.week()] += due;
             weekCompleted[pos.week()] += done;
 
-            if (d.isBefore(date)) {
-                scheduledSoFar += due;
+            if (!d.isAfter(date)) {
                 completedSoFar += done;
-            } else if (d.isEqual(date)) {
-                scheduledSoFar += done;   // today: only what's already ticked
-                completedSoFar += done;
+                dueSoFar += due;
             }
         }
 
@@ -96,11 +98,11 @@ public class ProgressService {
             weeks.add(new WeekBar(w, weekScheduled[w], weekCompleted[w]));
         }
 
-        int percent = scheduledSoFar == 0 ? 0 : Math.round(100f * completedSoFar / scheduledSoFar);
+        int percent = dueSoFar == 0 ? 0 : Math.round(100f * completedSoFar / dueSoFar);
         int streak = streak(plan, date, first, doneByDate, skipped);
 
-        return new ProgressResponse(plan.getId(), date, percent, completedSoFar, scheduledSoFar,
-                streak, totalItems, weeks);
+        return new ProgressResponse(plan.getId(), date, percent, completedSoFar,
+                dueSoFar, streak, totalItems, weeks);
     }
 
     /** Training days in a row, counting back from {@code date}, where every exercise was done. */

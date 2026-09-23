@@ -150,7 +150,7 @@ class MissedDayApiIntegrationTest {
         tickAll(id, TUE);
 
         mvc.perform(get("/api/plans/" + id + "/progress").param("date", WED))
-                .andExpect(jsonPath("$.scheduled").value(4))    // Monday no longer counts
+                .andExpect(jsonPath("$.dueSoFar").value(4))     // Monday no longer counts
                 .andExpect(jsonPath("$.completed").value(4))
                 .andExpect(jsonPath("$.percent").value(100))
                 .andExpect(jsonPath("$.streak").value(1));      // and it doesn't break the streak
@@ -163,7 +163,7 @@ class MissedDayApiIntegrationTest {
         skip(id, MON, false).andExpect(jsonPath("$.skipped").value(false));
 
         mvc.perform(get("/api/plans/" + id + "/progress").param("date", WED))
-                .andExpect(jsonPath("$.scheduled").value(8));
+                .andExpect(jsonPath("$.dueSoFar").value(8));
     }
 
     @Test
