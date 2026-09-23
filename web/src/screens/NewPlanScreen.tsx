@@ -1,23 +1,29 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useRef, useState, type ChangeEvent } from 'react'
+import { useNavigate } from 'react-router'
 
-import { useParsePreview } from '../api/queries'
+import { useCreatePlan, useParsePreview } from '../api/queries'
 import { CheckIcon, CopyIcon } from '../components/Icons'
 import { ParseErrors } from '../components/ParseErrors'
 import { PlanPreview } from '../components/PlanPreview'
+import { SaveBar } from '../components/SaveBar'
 import { Screen } from '../components/Screen'
 import { copyText } from '../lib/clipboard'
+import { nextMonday } from '../lib/dates'
 import { ANYTHING_PROMPT } from '../lib/prompt'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { press, spring } from '../motion/springs'
 
 /**
- * Day 9: paste (or upload) a plan and see exactly what the app understood.
- * Choosing a start date and saving comes on Day 10.
+ * Paste (or upload) a plan, see exactly what the app understood, pick a start
+ * date, and save it. Nothing is saved until you tap Save plan.
  */
 export function NewPlanScreen() {
   const [text, setText] = useState('')
+  const [startDate, setStartDate] = useState(nextMonday())
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const navigate = useNavigate()
+  const createPlan = useCreatePlan()
 
   // Wait for a short pause in typing before asking the server. A paste lands in one go anyway.
   const debouncedText = useDebouncedValue(text, 300)
@@ -104,10 +110,25 @@ export function NewPlanScreen() {
         {result?.ok && result.plan && (
           <motion.div key="preview" {...fadeUp}>
             <PlanPreview plan={result.plan} />
-            <p className="t-footnote secondary next-note">
-              Next up (Day 10): pick a start date and save this plan.
-            </p>
+            <div className="save-bar-spacer" />
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {result?.ok && (
+          <SaveBar
+            startDate={startDate}
+            onStartDateChange={setStartDate}
+            busy={createPlan.isPending}
+            error={createPlan.isError ? createPlan.error.message : undefined}
+            onSave={() =>
+              createPlan.mutate(
+                { text, startDate },
+                { onSuccess: () => navigate('/', { replace: true }) },
+              )
+            }
+          />
         )}
       </AnimatePresence>
     </Screen>

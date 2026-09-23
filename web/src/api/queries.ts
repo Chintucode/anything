@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from './client'
 
@@ -45,5 +45,21 @@ export function useParsePreview(text: string) {
     staleTime: Infinity,          // same text always parses the same way
     placeholderData: (previous) => previous, // keep the last preview on screen while checking
     retry: false,
+  })
+}
+
+export function useCreatePlan() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ text, startDate }: { text: string; startDate: string }) => api.createPlan(text, startDate),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.plans }),
+  })
+}
+
+export function useDeletePlan() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.deletePlan(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.plans }),
   })
 }

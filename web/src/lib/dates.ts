@@ -23,3 +23,22 @@ export function formatShort(iso: string): string {
     month: 'short',
   })
 }
+
+/** The next Monday, or today if today is Monday. Most plans start on a Monday. */
+export function nextMonday(from: Date = new Date()): string {
+  const date = new Date(from)
+  const daysAhead = (8 - date.getDay()) % 7   // Sunday = 0 … Monday = 1
+  date.setDate(date.getDate() + daysAhead)
+  return toISODate(date)
+}
+
+/** "2026-09-28" → "Monday, 28 September 2026". */
+export function formatLong(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}

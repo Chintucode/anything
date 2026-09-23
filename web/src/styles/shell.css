@@ -185,3 +185,69 @@
 .placeholder-note {
   margin-top: var(--space-3);
 }
+
+/* ---------- Swipe-to-delete ---------- */
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+  background: var(--danger);
+}
+
+.swipe-action {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font: var(--text-subhead);
+  font-weight: 600;
+  background: var(--danger);
+}
+
+.swipe-content {
+  position: relative;
+  background: var(--surface);
+  touch-action: pan-y;    /* let the page scroll vertically, we handle horizontal */
+  cursor: grab;
+}
+
+.list-hint {
+  margin: var(--space-3) 0 0;
+  text-align: center;
+}
+
+/* ---------- Sheet + scrim ---------- */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.sheet {
+  position: fixed;
+  z-index: 21;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: min(var(--content-max), 100%);
+  margin: 0 auto;
+  padding: var(--space-6) var(--gutter) calc(var(--space-5) + var(--safe-bottom));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-raised);
+  display: grid;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.sheet-actions {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
