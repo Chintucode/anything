@@ -39,6 +39,14 @@ public class PlanService {
         if (!result.isOk()) {
             throw new InvalidPlanException(result.errors());
         }
+        // The parser understands sequential courses ("### Day 9") already, but the
+        // schedule and the screens still think in weekdays. Saving one would store a
+        // plan the app can't show, so it's refused out loud until that lands.
+        if (!result.plan().header().isWeekly()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Day-by-day plans parse correctly but can't be saved yet — only weekday plans can. "
+                            + "This one is ready for the next release.");
+        }
         Plan plan = toEntity(result.plan(), request);
         return PlanDetail.from(plans.save(plan));
     }
@@ -69,7 +77,7 @@ public class PlanService {
                 request.startDate(), request.text());
 
         for (ParsedPhase p : parsed.phases()) {
-            PlanPhase phase = new PlanPhase(p.fromWeek(), p.toWeek(), p.name());
+            PlanPhase phase = new PlanPhase(p.from(), p.to(), p.name());
             List<ParsedDay> days = p.days();
             for (int d = 0; d < days.size(); d++) {
                 ParsedDay pd = days.get(d);

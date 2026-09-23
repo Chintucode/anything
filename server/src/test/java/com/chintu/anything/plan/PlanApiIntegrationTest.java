@@ -155,6 +155,17 @@ class PlanApiIntegrationTest {
     }
 
     @Test
+    void aDayByDayCourseParsesButIsNotSavedYet() throws Exception {
+        mvc.perform(post("/api/plans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody(fixture("meditation.md"), START)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(containsString("can't be saved yet")));
+
+        assertThat(plans.count()).isZero();
+    }
+
+    @Test
     void missingStartDateIsABadRequest() throws Exception {
         mvc.perform(post("/api/plans")
                         .contentType(MediaType.APPLICATION_JSON)

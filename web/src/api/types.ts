@@ -25,23 +25,37 @@ export interface ParsedItem {
   line: number
 }
 
+/**
+ * How a plan is scheduled. WEEKLY: "### Mon: Push", pinned to weekdays and repeating.
+ * SEQUENTIAL: "### Day 9: Naming Thoughts", worked through in order, not by date.
+ */
+export type Schedule = 'WEEKLY' | 'SEQUENTIAL'
+
 export interface ParsedDay {
-  weekday: Weekday
+  /** Weekly plans only. */
+  weekday: Weekday | null
+  /** Day-by-day plans only: the 9 in "Day 9". */
+  dayNumber: number | null
   title: string
+  /** The paragraph under the heading. For a meditation day, the practice itself. */
+  description: string
   line: number
   items: ParsedItem[]
 }
 
 export interface ParsedPhase {
-  fromWeek: number
-  toWeek: number
+  /** Inclusive, counted in the plan's own unit: weeks when weekly, days when sequential. */
+  from: number
+  to: number
   name: string
+  description: string
   line: number
   days: ParsedDay[]
 }
 
 export interface ParsedPlan {
-  header: { formatVersion: number; title: string; category: string; weeks: number }
+  /** `length` is in weeks for a weekly plan and days for a sequential one. */
+  header: { formatVersion: number; title: string; category: string; schedule: Schedule; length: number }
   phases: ParsedPhase[]
 }
 

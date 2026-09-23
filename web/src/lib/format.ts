@@ -24,7 +24,7 @@ export function formatSeconds(seconds: number): string {
   return rest === 0 ? `${min} min` : `${min} min ${rest}s`
 }
 
-/** 4 sets of 10 → "4 × 10"; "3 × 40s"; "3 × 10 each leg"; "1 × max". */
+/** 4 sets of 10 → "4 × 10"; "3 × 40s"; "3 × 10 each leg"; one block of ten minutes → "10 min". */
 export function formatSetsReps(sets: number, reps: Reps): string {
   let what: string
   switch (reps.kind) {
@@ -43,7 +43,8 @@ export function formatSetsReps(sets: number, reps: Reps): string {
   if (reps.detail) {
     what += ` ${reps.detail}`
   }
-  return `${sets} × ${what}`
+  // One block of something is just the thing: "10 min", not "1 × 10 min".
+  return sets === 1 ? what : `${sets} × ${what}`
 }
 
 export function plural(n: number, word: string): string {

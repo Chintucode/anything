@@ -260,6 +260,33 @@
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
+.day-pill-number {
+  width: auto;
+  min-width: 2.5rem;
+  padding: 0.2rem 0.5rem;
+  white-space: nowrap;
+}
+
+.phase-description {
+  padding: 0 var(--space-4) var(--space-2);
+  margin-top: calc(var(--space-1) * -1);
+}
+
+.day-detail {
+  overflow: hidden;
+}
+
+/* On a meditation day this paragraph is the practice, so it reads as body text, not a caption. */
+.day-description {
+  padding: 0 var(--space-4) var(--space-2) calc(var(--space-4) + 2.5rem + var(--space-3));
+  color: var(--label-2);
+  line-height: 1.45;
+}
+
+.stat-wide {
+  grid-column: span 2;
+}
+
 .exercise-list {
   list-style: none;
   margin: 0;
@@ -305,6 +332,11 @@
   padding: var(--space-3) var(--gutter) var(--space-4);
   display: grid;
   gap: var(--space-2);
+}
+
+.save-bar-inner.not-yet {
+  gap: var(--space-1);
+  text-align: center;
 }
 
 .save-bar-spacer {

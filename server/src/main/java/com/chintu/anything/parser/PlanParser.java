@@ -23,22 +23,42 @@ public class PlanParser {
 
     public static final int SUPPORTED_FORMAT_VERSION = 1;
     public static final int MAX_WEEKS = 52;
-    public static final Set<String> SUPPORTED_CATEGORIES = Set.of("workout");
+
+    /** A sequential course longer than this is almost certainly a parsing mistake. */
+    public static final int MAX_DAYS = 400;
+
+    /** Room for a real instruction, not an essay. */
+    public static final int MAX_DESCRIPTION_LENGTH = 1000;
 
     /** The --- lines around the header. AI models often write a longer row of dashes, so accept 3 or more. */
     private static final Pattern HEADER_FENCE = Pattern.compile("^-{3,}$");
-    /** Required header keys, in the order errors are reported. */
-    private static final List<String> REQUIRED_KEYS = List.of("anything", "title", "category", "weeks");
+    /** Required header keys, in the order errors are reported. "weeks" or "days" is checked separately. */
+    private static final List<String> REQUIRED_KEYS = List.of("anything", "title", "category");
 
-    /** "## Weeks 1-4: Foundation", "## Week 3", "## Week 3: Deload". */
+    /**
+     * "## Weeks 1-4: Foundation", "## Week 3: Deload", "## Days 1-7: Showing Up" — and
+     * "## Week 1 — Showing Up", with the dash every model reached for when asked for a
+     * meditation course. (A plain hyphen can't be a separator: it's already the range.)
+     */
     private static final Pattern PHASE_HEADING = Pattern.compile(
-            "^##\\s+Weeks?\\s+(\\d+)(?:\\s*-\\s*(\\d+))?\\s*(?::\\s*(.*))?$",
+            "^##\\s+(Weeks?|Days?)\\s+(\\d+)(?:\\s*-\\s*(\\d+))?\\s*(?:[:\\u2014\\u2013]\\s*(.*))?$",
             Pattern.CASE_INSENSITIVE);
 
     /** "### Mon: Push", "### Monday", "### thu: Legs + Core". */
     private static final Pattern DAY_HEADING = Pattern.compile(
             "^###\\s+(mon|tue|wed|thu|fri|sat|sun)[a-z]*\\s*(?::\\s*(.*))?$",
             Pattern.CASE_INSENSITIVE);
+
+    /** "### Day 9: Naming Thoughts", "### Day 1 - Just Breathe", "### Day 21". */
+    private static final Pattern DAY_NUMBER_HEADING = Pattern.compile(
+            "^###\\s+Day\\s+(\\d+)\\s*(?:[:\\u2014\\u2013-]\\s*(.*))?$",
+            Pattern.CASE_INSENSITIVE);
+
+    /** Any "###" heading at all, used to work out how the plan is scheduled. */
+    private static final Pattern ANY_DAY_HEADING = Pattern.compile("^###\\s+\\S.*$");
+
+    /** A category is a label, not a behaviour: letters, digits, spaces and hyphens. */
+    private static final Pattern CATEGORY = Pattern.compile("^[a-z0-9][a-z0-9 -]{0,39}$");
 
     /**
      * "3x10", "3 x 30s", "4×8 each leg", "1xmax" — and the longhand a model reaches
@@ -107,6 +127,14 @@ public class PlanParser {
         int bodyStart = 0;
         PlanHeader header = null;
 
+        // Which kind of plan this is decides how every heading below reads, so it's
+        // settled first, from the day headings themselves rather than from a header
+        // field a model might forget.
+        PlanHeader.Schedule schedule = detectSchedule(lines, errors);
+        if (schedule == null) {
+            return ParseResult.failure(errors);
+        }
+
         int first = firstNonBlank(lines, 0);
         if (first >= 0 && isFence(lines[first])) {
             int close = findHeaderClose(lines, first + 1);
@@ -115,26 +143,27 @@ public class PlanParser {
                         "The header block is never closed. Add a line with just --- after the last header field."));
                 return ParseResult.failure(errors);
             }
-            header = parseHeader(lines, first + 1, close, first + 1, errors);
+            header = parseHeader(lines, first + 1, close, first + 1, schedule, errors);
             bodyStart = close + 1;
         } else {
             errors.add(new ParseError(first + 1,
-                    "The plan must start with a header block: a line with ---, then anything, title, category and weeks, then ---."));
+                    "The plan must start with a header block: a line with ---, then anything, title, category and weeks (or days), then ---."));
             bodyStart = Math.max(first, 0);
         }
 
-        List<ParsedPhase> phases = parseBody(lines, bodyStart, header, errors);
+        List<ParsedPhase> phases = parseBody(lines, bodyStart, header, schedule, errors);
 
         PlanValidator.checkDuplicateDays(phases, errors);
         // Coverage only makes sense once every heading parsed; otherwise a skipped
         // phase would show up as a confusing "weeks not covered" error.
         if (errors.isEmpty() && header != null && !phases.isEmpty()) {
-            phases = PlanValidator.checkWeekCoverage(header, phases, errors);
+            phases = PlanValidator.checkCoverage(header, phases, errors);
         }
 
         if (phases.isEmpty() && errors.isEmpty()) {
-            errors.add(new ParseError(bodyStart + 1,
-                    "No phases found. Add at least one heading like \"## Weeks 1-4: Foundation\"."));
+            errors.add(new ParseError(bodyStart + 1, schedule == PlanHeader.Schedule.SEQUENTIAL
+                    ? "No phases found. Add at least one heading like \"## Days 1-7: Showing Up\"."
+                    : "No phases found. Add at least one heading like \"## Weeks 1-4: Foundation\"."));
         }
 
         return errors.isEmpty()
@@ -142,9 +171,43 @@ public class PlanParser {
                 : ParseResult.failure(errors);
     }
 
+    /**
+     * Weekly or sequential, decided by the day headings: "### Mon" means one,
+     * "### Day 9" the other. A plan that uses both is an error rather than a guess —
+     * the two schedules behave differently enough that picking wrong would be worse
+     * than saying so. A plan with no day headings at all defaults to weekly, and
+     * fails later on the errors it really has.
+     */
+    private static PlanHeader.Schedule detectSchedule(String[] lines, List<ParseError> errors) {
+        int weekdayLine = -1;
+        int numberedLine = -1;
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].trim();
+            if (!ANY_DAY_HEADING.matcher(line).matches()) {
+                continue;
+            }
+            if (DAY_NUMBER_HEADING.matcher(line).matches()) {
+                numberedLine = numberedLine < 0 ? i + 1 : numberedLine;
+            } else if (DAY_HEADING.matcher(line).matches()) {
+                weekdayLine = weekdayLine < 0 ? i + 1 : weekdayLine;
+            }
+        }
+
+        if (weekdayLine > 0 && numberedLine > 0) {
+            errors.add(new ParseError(Math.max(weekdayLine, numberedLine),
+                    "This plan mixes weekdays (line " + weekdayLine + ") and day numbers (line "
+                            + numberedLine + "). Use one or the other: weekdays for a weekly "
+                            + "program, \"Day 1\", \"Day 2\" for a course you work through in order."));
+            return null;
+        }
+        return numberedLine > 0 ? PlanHeader.Schedule.SEQUENTIAL : PlanHeader.Schedule.WEEKLY;
+    }
+
     // ---------------------------------------------------------------- header
 
-    private PlanHeader parseHeader(String[] lines, int from, int to, int openingLine, List<ParseError> errors) {
+    private PlanHeader parseHeader(String[] lines, int from, int to, int openingLine,
+            PlanHeader.Schedule schedule, List<ParseError> errors) {
         Map<String, String> values = new HashMap<>();
         Map<String, Integer> lineOf = new HashMap<>();
 
@@ -185,22 +248,41 @@ public class PlanParser {
                     "Unsupported format version \"" + values.get("anything") + "\". Use \"anything: 1\"."));
         }
 
+        // A category is a label the person reads, not a switch the app flips, so any
+        // sensible word will do: workout, meditation, study, whatever the plan is.
         String category = values.get("category").toLowerCase();
-        if (!SUPPORTED_CATEGORIES.contains(category)) {
+        if (!CATEGORY.matcher(category).matches()) {
             errors.add(new ParseError(lineOf.get("category"),
-                    "Category \"" + values.get("category") + "\" isn't supported yet. Use \"category: workout\"."));
+                    "Category \"" + values.get("category")
+                            + "\" should be a short word or two, like \"workout\" or \"meditation\"."));
         }
 
-        Integer weeks = parsePositiveInt(values.get("weeks"));
-        if (weeks == null || weeks > MAX_WEEKS) {
-            errors.add(new ParseError(lineOf.get("weeks"),
-                    "\"weeks\" must be a whole number from 1 to " + MAX_WEEKS + "."));
+        boolean sequential = schedule == PlanHeader.Schedule.SEQUENTIAL;
+        String lengthKey = sequential ? "days" : "weeks";
+        String otherKey = sequential ? "weeks" : "days";
+        int max = sequential ? MAX_DAYS : MAX_WEEKS;
+
+        if (!values.getOrDefault(otherKey, "").isEmpty() && values.getOrDefault(lengthKey, "").isEmpty()) {
+            errors.add(new ParseError(lineOf.get(otherKey), sequential
+                    ? "This plan is written as \"Day 1\", \"Day 2\", so the header needs \"days: <total>\" instead of \"weeks\"."
+                    : "This plan is written with weekdays, so the header needs \"weeks: <total>\" instead of \"days\"."));
+            return null;
+        }
+
+        if (values.getOrDefault(lengthKey, "").isEmpty()) {
+            errors.add(new ParseError(openingLine, "The header is missing \"" + lengthKey + "\"."));
+            return null;
+        }
+        Integer length = parsePositiveInt(values.get(lengthKey));
+        if (length == null || length > max) {
+            errors.add(new ParseError(lineOf.getOrDefault(lengthKey, openingLine),
+                    "\"" + lengthKey + "\" must be a whole number from 1 to " + max + "."));
         }
 
         if (errors.size() > errorsBefore) {
             return null;
         }
-        return new PlanHeader(version, values.get("title"), category, weeks);
+        return new PlanHeader(version, values.get("title"), category, schedule, length);
     }
 
     // ------------------------------------------------------------------ body
@@ -211,7 +293,8 @@ public class PlanParser {
      * <p>When a heading is invalid, the lines under it are skipped quietly,
      * so one mistake doesn't produce a cascade of follow-on errors.
      */
-    private List<ParsedPhase> parseBody(String[] lines, int from, PlanHeader header, List<ParseError> errors) {
+    private List<ParsedPhase> parseBody(String[] lines, int from, PlanHeader header,
+            PlanHeader.Schedule schedule, List<ParseError> errors) {
         List<ParsedPhase> phases = new ArrayList<>();
 
         PhaseBuilder phase = null;       // current valid phase, or null
@@ -234,16 +317,17 @@ public class PlanParser {
                     inBrokenDay = true;
                     continue;
                 }
-                day = parseDayHeading(line, lineNo, errors);
+                day = parseDayHeading(line, lineNo, schedule, phase, header, errors);
                 if (day == null) {
                     inBrokenDay = true;
+                    phase.hadBrokenDay = true;
                 } else {
                     phase.days.add(day);
                 }
 
             } else if (line.startsWith("##")) {
-                closePhase(phase, phases, errors);
-                phase = parsePhaseHeading(line, lineNo, header, errors);
+                closePhase(phase, phases, schedule, errors);
+                phase = parsePhaseHeading(line, lineNo, header, schedule, errors);
                 inBrokenPhase = phase == null;
                 day = null;
                 inBrokenDay = false;
@@ -261,43 +345,76 @@ public class PlanParser {
                 if (item != null) {
                     day.items.add(item);
                 }
+
+            } else if (!line.isEmpty() && !inBrokenPhase && !inBrokenDay) {
+                // Prose under a heading, before its first item. On a meditation day this
+                // is the practice itself, so it's kept rather than skipped. Anything
+                // after the first item is still ignored — by then the day has shape.
+                if (day != null && day.items.isEmpty()) {
+                    day.description.add(line);
+                } else if (day == null && phase != null && phase.days.isEmpty()) {
+                    phase.description.add(line);
+                }
             }
-            // Any other text (blank lines, a stray sentence from the AI) is ignored.
         }
-        closePhase(phase, phases, errors);
+        closePhase(phase, phases, schedule, errors);
         return phases;
     }
 
-    private PhaseBuilder parsePhaseHeading(String line, int lineNo, PlanHeader header, List<ParseError> errors) {
+    private PhaseBuilder parsePhaseHeading(String line, int lineNo, PlanHeader header,
+            PlanHeader.Schedule schedule, List<ParseError> errors) {
+        boolean sequential = schedule == PlanHeader.Schedule.SEQUENTIAL;
         Matcher m = PHASE_HEADING.matcher(line);
         if (!m.matches()) {
-            errors.add(new ParseError(lineNo,
-                    "Phase headings must look like \"## Weeks 1-4: Name\" or \"## Week 5: Name\"."));
+            errors.add(new ParseError(lineNo, sequential
+                    ? "Phase headings must look like \"## Days 1-7: Name\" or \"## Week 2: Name\"."
+                    : "Phase headings must look like \"## Weeks 1-4: Name\" or \"## Week 5: Name\"."));
             return null;
         }
 
-        int fromWeek = Integer.parseInt(m.group(1));
-        int toWeek = m.group(2) != null ? Integer.parseInt(m.group(2)) : fromWeek;
-        String name = m.group(3) != null ? m.group(3).trim() : "";
+        boolean writtenInWeeks = m.group(1).toLowerCase().startsWith("week");
+        int from = Integer.parseInt(m.group(2));
+        int to = m.group(3) != null ? Integer.parseInt(m.group(3)) : from;
+        String name = m.group(4) != null ? m.group(4).trim() : "";
+        String unit = sequential ? "Day" : "Week";
 
-        if (fromWeek < 1) {
-            errors.add(new ParseError(lineNo, "Weeks start at 1, not " + fromWeek + "."));
-            return null;
-        }
-        if (fromWeek > toWeek) {
+        if (!sequential && !writtenInWeeks) {
             errors.add(new ParseError(lineNo,
-                    "Week range " + fromWeek + "-" + toWeek + " is backwards. Write it as " + toWeek + "-" + fromWeek + "."));
+                    "This plan is scheduled by weekday, so its phases are weeks: \"## Weeks " + from + "-" + to + ": Name\"."));
             return null;
         }
-        if (header != null && toWeek > header.weeks()) {
+        if (from < 1) {
+            errors.add(new ParseError(lineNo, unit + "s start at 1, not " + from + "."));
+            return null;
+        }
+        if (from > to) {
             errors.add(new ParseError(lineNo,
-                    "Week " + toWeek + " is past the end of the plan (weeks: " + header.weeks() + ")."));
+                    unit + " range " + from + "-" + to + " is backwards. Write it as " + to + "-" + from + "."));
             return null;
         }
-        return new PhaseBuilder(fromWeek, toWeek, name, lineNo);
+        // Models group a 21-day course into "Week 1", "Week 2", "Week 3" out of habit.
+        // That's a perfectly clear thing to mean, so read it as days 1-7, 8-14, 15-21.
+        if (sequential && writtenInWeeks) {
+            to = to * 7;
+            from = from * 7 - 6;
+            if (header != null) {
+                to = Math.min(to, header.length());
+            }
+        }
+        if (header != null && to > header.length()) {
+            errors.add(new ParseError(lineNo, unit + " " + to + " is past the end of the plan ("
+                    + (sequential ? "days: " : "weeks: ") + header.length() + ")."));
+            return null;
+        }
+        return new PhaseBuilder(from, to, name, lineNo);
     }
 
-    private DayBuilder parseDayHeading(String line, int lineNo, List<ParseError> errors) {
+    private DayBuilder parseDayHeading(String line, int lineNo, PlanHeader.Schedule schedule,
+            PhaseBuilder phase, PlanHeader header, List<ParseError> errors) {
+        if (schedule == PlanHeader.Schedule.SEQUENTIAL) {
+            return parseNumberedDay(line, lineNo, phase, header, errors);
+        }
+
         Matcher m = DAY_HEADING.matcher(line);
         if (!m.matches()) {
             errors.add(new ParseError(lineNo,
@@ -306,10 +423,38 @@ public class PlanParser {
         }
         DayOfWeek weekday = WEEKDAYS.get(m.group(1).substring(0, 3).toLowerCase());
         String title = m.group(2) != null ? m.group(2).trim() : "";
-        return new DayBuilder(weekday, title, lineNo);
+        return new DayBuilder(weekday, null, title, lineNo);
     }
 
-    /** Parses "Name | sets x reps | rest 60s | note: text" (the bullet already removed). */
+    /** "### Day 9: Naming Thoughts" — the ninth thing you do, not a date. */
+    private DayBuilder parseNumberedDay(String line, int lineNo, PhaseBuilder phase,
+            PlanHeader header, List<ParseError> errors) {
+        Matcher m = DAY_NUMBER_HEADING.matcher(line);
+        if (!m.matches()) {
+            errors.add(new ParseError(lineNo,
+                    "Day headings must look like \"### Day 9: Naming Thoughts\"."));
+            return null;
+        }
+        int number = Integer.parseInt(m.group(1));
+        String title = m.group(2) != null ? m.group(2).trim() : "";
+
+        if (number < 1) {
+            errors.add(new ParseError(lineNo, "Days start at 1, not " + number + "."));
+            return null;
+        }
+        if (header != null && number > header.length()) {
+            errors.add(new ParseError(lineNo,
+                    "Day " + number + " is past the end of the plan (days: " + header.length() + ")."));
+            return null;
+        }
+        if (phase != null && (number < phase.from || number > phase.to)) {
+            errors.add(new ParseError(lineNo, "Day " + number + " isn't inside this phase (days "
+                    + phase.from + "-" + phase.to + "). Move it under the phase it belongs to."));
+            return null;
+        }
+        return new DayBuilder(null, number, title, lineNo);
+    }
+
     private ParsedItem parseItem(String text, int lineNo, List<ParseError> errors) {
         String[] fields = text.split("\\|", -1);
         String name = fields[0].trim();
@@ -324,19 +469,31 @@ public class PlanParser {
             return null;
         }
 
-        Matcher sr = SETS_REPS.matcher(fields[1].trim());
-        if (!sr.matches()) {
-            errors.add(new ParseError(lineNo,
-                    "\"" + fields[1].trim() + "\" isn't sets x reps. Write it like 3x10, 3x30s or 1xmax."));
+        // "3x10 reps" and "3x10" are the same plan; the word adds nothing to track.
+        String amount = TRAILING_REPS.matcher(fields[1].trim()).replaceFirst("").trim();
+        Matcher sr = SETS_REPS.matcher(amount);
+        int sets;
+        String repsText;
+
+        if (sr.matches()) {
+            sets = Integer.parseInt(sr.group(1));
+            repsText = sr.group(2).trim();
+        } else if (isBareAmount(amount)) {
+            // "10m" is one block of ten minutes, not a line missing its sets. Most
+            // things that aren't lifting are written this way.
+            sets = 1;
+            repsText = amount;
+        } else {
+            errors.add(new ParseError(lineNo, "\"" + fields[1].trim()
+                    + "\" isn't sets x reps or a length. Write it like 3x10, 3x30s, 1xmax or 10m."));
             return null;
         }
-        int sets = Integer.parseInt(sr.group(1));
+
         if (sets < 1 || sets > MAX_SETS) {
             errors.add(new ParseError(lineNo, "Sets must be from 1 to " + MAX_SETS + ", not " + sets + "."));
             return null;
         }
-        // "3x10 reps" and "3x10" are the same plan; the word adds nothing to track.
-        Reps reps = parseReps(TRAILING_REPS.matcher(sr.group(2).trim()).replaceFirst("").trim());
+        Reps reps = parseReps(repsText);
 
         Integer rest = null;
         String note = "";
@@ -359,6 +516,11 @@ public class PlanParser {
             }
         }
         return ok ? new ParsedItem(name, sets, reps, rest, note, lineNo) : null;
+    }
+
+    /** A number with an optional unit, or "max": enough to stand alone without sets. */
+    private static boolean isBareAmount(String text) {
+        return text.equalsIgnoreCase("max") || REPS_VALUE.matcher(text).matches();
     }
 
     private static Reps parseReps(String raw) {
@@ -384,7 +546,8 @@ public class PlanParser {
         return unit.toLowerCase().startsWith("m") ? number * 60 : number;
     }
 
-    private void closePhase(PhaseBuilder phase, List<ParsedPhase> phases, List<ParseError> errors) {
+    private void closePhase(PhaseBuilder phase, List<ParsedPhase> phases,
+            PlanHeader.Schedule schedule, List<ParseError> errors) {
         if (phase == null) {
             return;
         }
@@ -394,13 +557,18 @@ public class PlanParser {
                 errors.add(new ParseError(d.line,
                         "This day has no exercises. Add lines like \"- Push-ups | 3x10\", or remove the day to make it a rest day."));
             }
-            days.add(new ParsedDay(d.weekday, d.title, d.line, d.items));
+            days.add(new ParsedDay(d.weekday, d.dayNumber, d.title,
+                    description(d.description, d.line, errors), d.line, d.items));
         }
-        if (days.isEmpty()) {
-            errors.add(new ParseError(phase.line,
-                    "This phase has no training days. Add a day like \"### Mon: Push\" under it."));
+        // One mistake, one error: if this phase is empty only because its day heading
+        // was already rejected, saying "no days" as well would just repeat it.
+        if (days.isEmpty() && !phase.hadBrokenDay) {
+            errors.add(new ParseError(phase.line, schedule == PlanHeader.Schedule.SEQUENTIAL
+                    ? "This phase has no days. Add a day like \"### Day 1: Just Breathe\" under it."
+                    : "This phase has no training days. Add a day like \"### Mon: Push\" under it."));
         }
-        phases.add(new ParsedPhase(phase.fromWeek, phase.toWeek, phase.name, phase.line, days));
+        phases.add(new ParsedPhase(phase.from, phase.to, phase.name,
+                description(phase.description, phase.line, errors), phase.line, days));
     }
 
     /**
@@ -430,15 +598,18 @@ public class PlanParser {
 
     /** Mutable holders used while walking the lines; turned into records at the end. */
     private static final class PhaseBuilder {
-        final int fromWeek;
-        final int toWeek;
+        final int from;
+        final int to;
         final String name;
         final int line;
+        final List<String> description = new ArrayList<>();
         final List<DayBuilder> days = new ArrayList<>();
+        /** A day heading under this phase was rejected, so "no days" would only repeat that error. */
+        boolean hadBrokenDay;
 
-        PhaseBuilder(int fromWeek, int toWeek, String name, int line) {
-            this.fromWeek = fromWeek;
-            this.toWeek = toWeek;
+        PhaseBuilder(int from, int to, String name, int line) {
+            this.from = from;
+            this.to = to;
             this.name = name;
             this.line = line;
         }
@@ -446,15 +617,32 @@ public class PlanParser {
 
     private static final class DayBuilder {
         final DayOfWeek weekday;
+        final Integer dayNumber;
         final String title;
         final int line;
+        final List<String> description = new ArrayList<>();
         final List<ParsedItem> items = new ArrayList<>();
 
-        DayBuilder(DayOfWeek weekday, String title, int line) {
+        DayBuilder(DayOfWeek weekday, Integer dayNumber, String title, int line) {
             this.weekday = weekday;
+            this.dayNumber = dayNumber;
             this.title = title;
             this.line = line;
         }
+    }
+
+    /**
+     * Joins the prose collected under a heading, and refuses an essay. The limit is
+     * generous enough for a full meditation instruction and small enough to store.
+     */
+    private static String description(List<String> lines, int lineNo, List<ParseError> errors) {
+        String text = String.join(" ", lines).trim();
+        if (text.length() > MAX_DESCRIPTION_LENGTH) {
+            errors.add(new ParseError(lineNo, "This description is over " + MAX_DESCRIPTION_LENGTH
+                    + " characters. Trim it, or move the detail into a note on an item."));
+            return text.substring(0, MAX_DESCRIPTION_LENGTH);
+        }
+        return text;
     }
 
     // --------------------------------------------------------------- helpers

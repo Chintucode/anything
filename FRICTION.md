@@ -22,6 +22,7 @@ Fix the top item at the start of each session, then cross it off.
 | 23 Sep | "Full Body B done" under a green finished ring said it twice | yes |
 | 23 Sep | The week ring reset on the plan's start weekday, not Monday, and sat dead through a rest day | yes |
 | 23 Sep | Every plan number so far measured adherence, not completion — the app runs plans, so it shows completion now | yes |
-| 23 Sep | Format only knows weekly plans (Mon/Tue inside Weeks 1-4) — a 21-day meditation course can't be expressed | no |
+| 23 Sep | Format only knows weekly plans (Mon/Tue inside Weeks 1-4) — a 21-day meditation course can't be expressed | parsed + previewed; saving next |
 | 23 Sep | AI output didn't match the format — prompt rewritten with a worked example and a pre-answer checklist | yes |
 | 23 Sep | Code fences, bold, "3 sets x 10 reps" and full weekday names broke the parser — now absorbed | yes |
+| 23 Sep | Three AIs asked for a meditation plan all wrote Day 1-21, one practice a day, in minutes — format now reads that shape | yes |

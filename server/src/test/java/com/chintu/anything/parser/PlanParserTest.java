@@ -67,7 +67,7 @@ class PlanParserTest {
         @Test
         void readsThreePhasesOfFourDays() {
             assertThat(plan.phases())
-                    .extracting(ParsedPhase::fromWeek, ParsedPhase::toWeek, ParsedPhase::name)
+                    .extracting(ParsedPhase::from, ParsedPhase::to, ParsedPhase::name)
                     .containsExactly(tuple(1, 4, "Foundation"), tuple(5, 8, "Build"), tuple(9, 12, "Strength"));
 
             assertThat(plan.phases().get(0).days())
@@ -127,8 +127,8 @@ class PlanParserTest {
 
         assertThat(result.errors()).isEmpty();
         ParsedPhase last = result.plan().phases().get(1);
-        assertThat(last.fromWeek()).isEqualTo(8);
-        assertThat(last.toWeek()).isEqualTo(8);
+        assertThat(last.from()).isEqualTo(8);
+        assertThat(last.to()).isEqualTo(8);
         assertThat(last.name()).isEmpty();
     }
 
@@ -270,11 +270,27 @@ class PlanParserTest {
         }
 
         @Test
-        void unsupportedCategory() {
-            ParseResult result = parser.parse(HEADER.replace("category: workout", "category: study") + BODY);
+        void anyShortCategoryIsAccepted() {
+            ParseResult result = parser.parse(HEADER.replace("category: workout", "category: Study Plan") + BODY);
+
+            assertThat(result.errors()).isEmpty();
+            assertThat(result.plan().header().category()).isEqualTo("study plan");
+        }
+
+        @Test
+        void aCategoryHasToBeAWordOrTwo() {
+            ParseResult result = parser.parse(HEADER.replace("category: workout", "category: 🧘 zen!!") + BODY);
 
             assertThat(result.errors()).singleElement()
-                    .satisfies(e -> assertThat(e.message()).contains("isn't supported yet"));
+                    .satisfies(e -> assertThat(e.message()).contains("short word or two"));
+        }
+
+        @Test
+        void missingWeeks() {
+            ParseResult result = parser.parse(HEADER.replace("weeks: 8\n", "") + BODY);
+
+            assertThat(result.errors()).singleElement()
+                    .satisfies(e -> assertThat(e.message()).contains("missing \"weeks\""));
         }
 
         @Test
@@ -616,6 +632,153 @@ class PlanParserTest {
             // Fence on line 1, header lines 2-7, phase 8, day 9, the bad exercise on 10.
             assertThat(result.errors().get(0).line()).isEqualTo(10);
             assertThat(result.errors().get(0).message()).contains("isn't sets x reps");
+        }
+    }
+
+    // ------------------------------------------- day-by-day courses
+
+    /**
+     * A second shape of plan: "Day 1, Day 2, Day 3", worked through in order rather
+     * than pinned to weekdays. Three different AI models, asked for a 21-day
+     * meditation plan with no format given, all wrote it this way.
+     */
+    @Nested
+    class DayByDayCourses {
+
+        private static final String COURSE = """
+                ---
+                anything: 1
+                title: Course
+                category: meditation
+                days: 21
+                ---
+                """;
+
+        @Test
+        void theMeditationFixtureParses() throws IOException {
+            ParseResult result = parser.parse(fixture("meditation.md"));
+
+            assertThat(result.errors()).isEmpty();
+            PlanHeader header = result.plan().header();
+            assertThat(header.schedule()).isEqualTo(PlanHeader.Schedule.SEQUENTIAL);
+            assertThat(header.category()).isEqualTo("meditation");
+            assertThat(header.length()).isEqualTo(21);
+            assertThat(header.weeks()).isEqualTo(3);
+            assertThat(result.plan().phases())
+                    .extracting(ParsedPhase::from, ParsedPhase::to)
+                    .containsExactly(tuple(1, 7), tuple(8, 14), tuple(15, 21));
+            assertThat(result.plan().phases().stream().mapToInt(ph -> ph.days().size()).sum()).isEqualTo(21);
+        }
+
+        @Test
+        void aDayHasANumberAndNoWeekday() throws IOException {
+            ParsedDay day1 = parser.parse(fixture("meditation.md")).plan().phases().get(0).days().get(0);
+
+            assertThat(day1.dayNumber()).isEqualTo(1);
+            assertThat(day1.weekday()).isNull();
+            assertThat(day1.title()).isEqualTo("Just Breathe");
+        }
+
+        @Test
+        void theParagraphUnderADayIsItsDescription() throws IOException {
+            ParsedDay day1 = parser.parse(fixture("meditation.md")).plan().phases().get(0).days().get(0);
+
+            assertThat(day1.description()).startsWith("Sit comfortably and close your eyes.")
+                    .endsWith("When the mind wanders, gently come back.");
+        }
+
+        @Test
+        void theLineUnderAPhaseIsItsDescription() throws IOException {
+            ParsedPhase first = parser.parse(fixture("meditation.md")).plan().phases().get(0);
+
+            assertThat(first.description())
+                    .isEqualTo("Build the habit and learn to notice what's happening in your body and mind.");
+        }
+
+        @Test
+        void aBareDurationIsOneBlockOfIt() {
+            ParseResult result = parser.parse(COURSE + "## Days 1-21: All\n### Day 1: Sit\n- Breath awareness | 10m\n");
+
+            ParsedItem item = result.plan().phases().get(0).days().get(0).items().get(0);
+            assertThat(item.sets()).isEqualTo(1);
+            assertThat(item.reps().kind()).isEqualTo(Reps.Kind.SECONDS);
+            assertThat(item.reps().value()).isEqualTo(600);
+        }
+
+        @Test
+        void weekChaptersInACourseMeanSevenDaysEach() {
+            ParseResult result = parser.parse(COURSE
+                    + "## Week 1 — Showing Up\n### Day 1 — Just Breathe\n- Breath | 5m\n"
+                    + "## Week 2 — Deepening\n### Day 8: Longer\n- Breath | 10m\n"
+                    + "## Week 3 — Integrating\n### Day 21: Close\n- Open awareness | 15 min\n");
+
+            assertThat(result.errors()).isEmpty();
+            assertThat(result.plan().phases())
+                    .extracting(ParsedPhase::from, ParsedPhase::to, ParsedPhase::name)
+                    .containsExactly(tuple(1, 7, "Showing Up"), tuple(8, 14, "Deepening"), tuple(15, 21, "Integrating"));
+            assertThat(result.plan().phases().get(0).days().get(0).title()).isEqualTo("Just Breathe");
+        }
+
+        @Test
+        void mixingWeekdaysAndDayNumbersIsRefused() {
+            ParseResult result = parser.parse(COURSE
+                    + "## Days 1-21: All\n### Day 1: A\n- X | 5m\n### Mon: B\n- Y | 3x10\n");
+
+            assertThat(result.errors()).singleElement()
+                    .satisfies(e -> assertThat(e.message()).contains("mixes weekdays"));
+        }
+
+        @Test
+        void aCourseNeedsDaysNotWeeksInTheHeader() {
+            ParseResult result = parser.parse(COURSE.replace("days: 21", "weeks: 3")
+                    + "## Days 1-21: All\n### Day 1: A\n- X | 5m\n");
+
+            assertThat(result.errors()).singleElement()
+                    .satisfies(e -> assertThat(e.message()).contains("needs \"days: <total>\""));
+        }
+
+        @Test
+        void thereIsOnlyOneDayNine() {
+            ParseResult result = parser.parse(COURSE
+                    + "## Days 1-21: All\n### Day 9: A\n- X | 5m\n### Day 9: B\n- Y | 5m\n");
+
+            assertThat(result.errors()).singleElement()
+                    .satisfies(e -> assertThat(e.message()).contains("Day 9 appears twice"));
+        }
+
+        @Test
+        void aDaySitsInsideItsPhase() {
+            ParseResult result = parser.parse(COURSE
+                    + "## Days 1-7: A\n### Day 9: Wrong\n- X | 5m\n## Days 8-21: B\n### Day 10: B\n- Y | 5m\n");
+
+            assertThat(result.errors()).singleElement()
+                    .satisfies(e -> assertThat(e.message()).contains("isn't inside this phase"));
+        }
+
+        @Test
+        void everyDayIsCoveredByAPhase() {
+            ParseResult result = parser.parse(COURSE
+                    + "## Days 1-7: A\n### Day 1: A\n- X | 5m\n## Days 15-21: C\n### Day 15: C\n- Y | 5m\n");
+
+            assertThat(result.errors()).singleElement()
+                    .satisfies(e -> assertThat(e.message()).contains("Days 8-14 are not covered"));
+        }
+
+        @Test
+        void aWeekdayPlanStillThinksInWeeks() {
+            ParseResult result = parser.parse(HEADER + "## Days 1-8: All\n" + DAY);
+
+            assertThat(result.errors()).singleElement()
+                    .satisfies(e -> assertThat(e.message()).contains("its phases are weeks"));
+        }
+
+        @Test
+        void aWorkoutDayCanHaveADescriptionToo() {
+            ParseResult result = parser.parse(HEADER
+                    + "## Weeks 1-8: All\n### Mon: Push\nWarm up for five minutes first.\n- Push-ups | 3x10\n");
+
+            assertThat(result.plan().phases().get(0).days().get(0).description())
+                    .isEqualTo("Warm up for five minutes first.");
         }
     }
 }

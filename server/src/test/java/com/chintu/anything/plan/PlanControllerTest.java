@@ -46,7 +46,8 @@ class PlanControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true))
                 .andExpect(jsonPath("$.plan.header.title").value("12-Week Calisthenics Strength"))
-                .andExpect(jsonPath("$.plan.header.weeks").value(12))
+                .andExpect(jsonPath("$.plan.header.schedule").value("WEEKLY"))
+                .andExpect(jsonPath("$.plan.header.length").value(12))
                 .andExpect(jsonPath("$.plan.phases.length()").value(3))
                 .andExpect(jsonPath("$.plan.phases[0].days[0].weekday").value("MONDAY"))
                 .andExpect(jsonPath("$.plan.phases[0].days[0].items[0].name").value("Push-ups"))
@@ -63,7 +64,24 @@ class PlanControllerTest {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true))
-                .andExpect(jsonPath("$.plan.header.weeks").value(12));
+                .andExpect(jsonPath("$.plan.header.length").value(12));
+    }
+
+    @Test
+    void aDayByDayCourseReturnsThePreview() throws Exception {
+        mvc.perform(post("/api/plans/parse")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content(fixture("meditation.md")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(true))
+                .andExpect(jsonPath("$.plan.header.schedule").value("SEQUENTIAL"))
+                .andExpect(jsonPath("$.plan.header.category").value("meditation"))
+                .andExpect(jsonPath("$.plan.header.length").value(21))
+                .andExpect(jsonPath("$.plan.phases[0].from").value(1))
+                .andExpect(jsonPath("$.plan.phases[0].to").value(7))
+                .andExpect(jsonPath("$.plan.phases[0].days[0].dayNumber").value(1))
+                .andExpect(jsonPath("$.plan.phases[0].days[0].title").value("Just Breathe"))
+                .andExpect(jsonPath("$.plan.phases[0].days[0].items[0].reps.value").value(300));
     }
 
     @Test

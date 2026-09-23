@@ -116,7 +116,27 @@ export function NewPlanScreen() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {result?.ok && (
+        {/* A day-by-day course parses and previews, but the schedule and the Today
+            screen still think in weekdays, so saving one would store a plan the app
+            can't show. Say so here rather than let Save fail. */}
+        {result?.ok && result.plan?.header.schedule === 'SEQUENTIAL' && (
+          <motion.div
+            key="not-yet"
+            className="save-bar material"
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 40, opacity: 0 }}
+            transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
+          >
+            <div className="save-bar-inner not-yet">
+              <span className="t-headline">Reads perfectly. Can't run it yet.</span>
+              <span className="t-footnote secondary">
+                Day-by-day plans are the next thing being built. Weekday plans save as usual.
+              </span>
+            </div>
+          </motion.div>
+        )}
+        {result?.ok && result.plan?.header.schedule !== 'SEQUENTIAL' && (
           <SaveBar
             startDate={startDate}
             onStartDateChange={setStartDate}
