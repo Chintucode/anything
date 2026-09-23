@@ -26,3 +26,6 @@ Fix the top item at the start of each session, then cross it off.
 | 23 Sep | AI output didn't match the format — prompt rewritten with a worked example and a pre-answer checklist | yes |
 | 23 Sep | Code fences, bold, "3 sets x 10 reps" and full weekday names broke the parser — now absorbed | yes |
 | 23 Sep | Three AIs asked for a meditation plan all wrote Day 1-21, one practice a day, in minutes — format now reads that shape | yes |
+| 23 Sep | "Actually did" chips overlapped: 5-second steps on a 5-minute practice, and chips shrinking into each other | yes |
+| 23 Sep | Finished-day ring showed empty — the check icon was pinned under the ring's stroke by an over-broad CSS rule | yes |
+| 23 Sep | Tapping "log actual" unticked the exercise — the row was painted over the top 40% of the chip | yes |

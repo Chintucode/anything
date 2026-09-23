@@ -187,7 +187,10 @@
   place-items: center;
 }
 
-.ring svg {
+/* Only the ring's own drawing, not any icon placed in its centre. With a plain
+   descendant selector the day ring's check was pulled to the top-left corner
+   and hidden under the stroke. */
+.ring > svg {
   position: absolute;
   inset: 0;
 }
@@ -312,15 +315,31 @@
 }
 
 /* Its own line under the row, so it never sits on top of the reps. */
+/*
+ * The chip used to be pulled 8px up into the row with a negative margin. The row
+ * is position: relative, which paints it above its in-flow siblings, so the top
+ * 40% of the chip was really the row: tapping "log actual" unticked the exercise.
+ * Now it sits below the row, paints on top of anything it shares, and its tap
+ * area reaches 44px without the pill itself getting any bigger.
+ */
 .log-toggle {
-  display: block;
-  margin: calc(var(--space-2) * -1) 0 var(--space-2) auto;
-  margin-right: var(--space-4);
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+  margin: 0 var(--space-4) var(--space-2) auto;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
   color: var(--accent-text);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   font-weight: 600;
+}
+
+.log-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -6px -4px;
 }
 
 .log-editor {
@@ -346,8 +365,15 @@
 }
 
 .log-chips .chip {
+  /* A flex item shrinks by default, and a chip narrower than its label lets the
+     text spill into its neighbour. Chips keep their size; the row scrolls instead. */
+  flex: none;
   min-width: 2.25rem;
   font-variant-numeric: tabular-nums;
+}
+
+.log-custom {
+  flex: none;
 }
 
 .progress-eyebrow {

@@ -85,9 +85,14 @@ export function ExerciseRow({ item, onToggle, onLogReps }: Props) {
  */
 function LogEditor({ item, onPick }: { item: TodayItem; onPick: (reps: number | null) => void }) {
   const planned = item.reps.value ?? 0
-  const step = item.reps.kind === 'SECONDS' ? 5 : 1
+  const step = stepFor(item.reps, planned)
   const options = repOptions(planned, step, item.actualReps ?? null)
   const [custom, setCustom] = useState('')
+
+  // A long timed practice is typed in minutes, the way a person thinks of it:
+  // "8" on a ten-minute meditation means eight minutes, never eight seconds.
+  const inMinutes = item.reps.kind === 'SECONDS' && step >= 60
+  const unitLabel = item.reps.kind === 'SECONDS' ? (inMinutes ? 'min' : 'sec') : 'other'
 
   // Reopening on a row that already has a number should start from that number.
   useEffect(() => setCustom(''), [item.id])
@@ -95,7 +100,7 @@ function LogEditor({ item, onPick }: { item: TodayItem; onPick: (reps: number | 
   function submitCustom() {
     const n = Number(custom)
     if (Number.isFinite(n) && n > 0) {
-      onPick(Math.round(n))
+      onPick(Math.round(inMinutes ? n * 60 : n))
     }
   }
 
@@ -123,7 +128,7 @@ function LogEditor({ item, onPick }: { item: TodayItem; onPick: (reps: number | 
               inputMode="numeric"
               min={1}
               step={step}
-              placeholder="other"
+              placeholder={unitLabel}
               value={custom}
               onChange={(e) => setCustom(e.target.value)}
               aria-label={`Something else you did of ${item.name}`}
@@ -142,6 +147,24 @@ function LogEditor({ item, onPick }: { item: TodayItem; onPick: (reps: number | 
       </p>
     </>
   )
+}
+
+/**
+ * How far apart the suggested numbers sit. It has to scale with the thing being
+ * logged: five-second steps suit a 30s plank, but on a five-minute meditation they
+ * produced "4 min 45s, 4 min 50s, 4 min 55s…" — six chips saying nothing useful.
+ */
+function stepFor(reps: Reps, planned: number): number {
+  if (reps.kind !== 'SECONDS') {
+    return 1
+  }
+  if (planned >= 300) {
+    return 60   // 5 min and up: whole minutes
+  }
+  if (planned >= 60) {
+    return 15   // a minute or two: quarter minutes
+  }
+  return 5
 }
 
 /** 12 → "12" for reps, "40s" for a timed hold. */
