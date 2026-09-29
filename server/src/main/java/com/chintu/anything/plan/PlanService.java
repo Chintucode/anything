@@ -39,14 +39,6 @@ public class PlanService {
         if (!result.isOk()) {
             throw new InvalidPlanException(result.errors());
         }
-        // The parser understands sequential courses ("### Day 9") already, but the
-        // schedule and the screens still think in weekdays. Saving one would store a
-        // plan the app can't show, so it's refused out loud until that lands.
-        if (!result.plan().header().isWeekly()) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "Day-by-day plans parse correctly but can't be saved yet — only weekday plans can. "
-                            + "This one is ready for the next release.");
-        }
         Plan plan = toEntity(result.plan(), request);
         return PlanDetail.from(plans.save(plan));
     }
@@ -73,15 +65,19 @@ public class PlanService {
 
     private static Plan toEntity(ParsedPlan parsed, CreatePlanRequest request) {
         var header = parsed.header();
-        Plan plan = new Plan(header.title(), header.category(), header.weeks(),
-                request.startDate(), request.text());
+        Plan plan = header.isWeekly()
+                ? new Plan(header.title(), header.category(), header.weeks(), request.startDate(), request.text())
+                : Plan.course(header.title(), header.category(), header.length(), request.startDate(), request.text());
 
         for (ParsedPhase p : parsed.phases()) {
-            PlanPhase phase = new PlanPhase(p.from(), p.to(), p.name());
+            PlanPhase phase = new PlanPhase(p.from(), p.to(), p.name()).describedAs(p.description());
             List<ParsedDay> days = p.days();
             for (int d = 0; d < days.size(); d++) {
                 ParsedDay pd = days.get(d);
-                PlanDay day = new PlanDay(pd.weekday(), pd.title(), d);
+                PlanDay day = (pd.dayNumber() != null
+                        ? PlanDay.numbered(pd.dayNumber(), pd.title(), d)
+                        : new PlanDay(pd.weekday(), pd.title(), d))
+                        .describedAs(pd.description());
                 List<ParsedItem> items = pd.items();
                 for (int i = 0; i < items.size(); i++) {
                     ParsedItem pi = items.get(i);

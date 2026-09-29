@@ -42,6 +42,12 @@ public class WeekService {
         LocalDate monday = date.minusDays(date.getDayOfWeek().getValue() - 1L);
         LocalDate sunday = monday.plusDays(6);
 
+        // A course has no weekdays for a Monday-to-Sunday strip to show: day 9 isn't
+        // "Thursday". The app shows "Day 9 of 21" instead, so the week is empty.
+        if (plan.isSequential()) {
+            return new WeekResponse(plan.getId(), monday, sunday, List.of());
+        }
+
         Map<LocalDate, Set<Long>> doneByDate = new HashMap<>();
         for (Completion c : completions.findByPlanIdAndDoneOnBetween(plan.getId(), monday, sunday)) {
             doneByDate.computeIfAbsent(c.getDoneOn(), d -> new HashSet<>()).add(c.getItem().getId());

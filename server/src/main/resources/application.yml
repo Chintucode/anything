@@ -27,3 +27,19 @@ spring:
     url: jdbc:postgresql://localhost:5432/anything
     username: anything
     password: anything
+
+---
+# On the internet (Render). Set SPRING_PROFILES_ACTIVE=prod and DATABASE_URL.
+# The database itself is set up in config/ProductionDatabaseConfig.java.
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+server:
+  port: ${PORT:8080}                     # Render tells the app which port to listen on
+  forward-headers-strategy: framework    # it sits behind Render's HTTPS proxy
+  compression:
+    enabled: true
+    mime-types: application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,text/plain,application/manifest+json
+  shutdown: graceful

@@ -12,4 +12,10 @@ public interface CompletionRepository extends JpaRepository<Completion, Long> {
 
     /** Every completion for a plan within a date range (inclusive). */
     List<Completion> findByPlanIdAndDoneOnBetween(Long planId, LocalDate from, LocalDate to);
+
+    /** Every completion for a plan, whenever it happened. Day-by-day plans aren't tied to dates. */
+    List<Completion> findByPlanId(Long planId);
+
+    /** In a day-by-day plan an item is done once, on whatever date that happened. */
+    List<Completion> findByItemId(Long itemId);
 }

@@ -39,6 +39,10 @@ public class DayAdjustmentService {
     @Transactional
     public SkipResponse setSkipped(long planId, LocalDate date, boolean skipped) {
         Plan plan = find(planId);
+        if (plan.isSequential()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Day-by-day plans don't skip days. An unfinished day simply waits for you.");
+        }
 
         if (PlanSchedule.dayOn(plan, date).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -62,6 +66,10 @@ public class DayAdjustmentService {
     @Transactional
     public RestResponse setRested(long planId, LocalDate date, boolean rested) {
         Plan plan = find(planId);
+        if (plan.isSequential()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Day-by-day plans have no rest days to mark: the next day is whenever you're ready.");
+        }
 
         if (PlanSchedule.locate(plan, date).status() != PlanCalendar.Status.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,

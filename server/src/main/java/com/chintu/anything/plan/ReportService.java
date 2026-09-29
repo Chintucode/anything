@@ -36,19 +36,25 @@ public class ReportService {
     private final CompletionRepository completions;
     private final SkippedDayRepository skips;
     private final ProgressService progressService;
+    private final CourseService courses;
 
     public ReportService(PlanRepository plans, CompletionRepository completions,
-            SkippedDayRepository skips, ProgressService progressService) {
+            SkippedDayRepository skips, ProgressService progressService, CourseService courses) {
         this.plans = plans;
         this.completions = completions;
         this.skips = skips;
         this.progressService = progressService;
+        this.courses = courses;
     }
 
     @Transactional(readOnly = true)
     public String report(long planId, LocalDate date) {
         Plan plan = plans.findById(planId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan " + planId + " not found."));
+
+        if (plan.isSequential()) {
+            return courseReport(plan, date);
+        }
 
         ProgressResponse progress = progressService.progress(planId, date);
         Position pos = PlanSchedule.locate(plan, date);
@@ -92,6 +98,84 @@ public class ReportService {
         out.append("## Weeks A-B: Name, ### Mon: Title, and \"- Exercise | sets x reps | rest 60s | note: ...\").\n");
 
         return out.toString();
+    }
+
+    /**
+     * The same report for a day-by-day course. What an AI needs to adjust a course is
+     * different: not which weekdays were missed, but where you've got to, how fast, and
+     * which practices came up short.
+     */
+    private String courseReport(Plan plan, LocalDate date) {
+        CourseService.Standing s = courses.standing(plan, date);
+        ProgressResponse progress = courses.progress(plan, date);
+        LocalDate first = PlanSchedule.firstDay(plan);
+        int total = plan.getTotalDays();
+        long daysDone = s.days().stream().filter(s::isComplete).count();
+        StringBuilder out = new StringBuilder();
+
+        out.append("Here's how my plan is actually going. Read it and adjust the rest of the plan.\n\n");
+        out.append("PLAN\n");
+        out.append("- Title: ").append(plan.getTitle()).append('\n');
+        out.append("- Length: ").append(total).append(" days, worked through in order, started ")
+                .append(first.format(DAY)).append('\n');
+        out.append("- Today: ").append(date.format(DAY));
+        if (date.isBefore(first)) {
+            out.append(" — not started yet");
+        } else if (s.current() == null) {
+            out.append(" — the whole course is finished");
+        } else {
+            out.append(" — on day ").append(s.current().getDayNumber()).append(" of ").append(total);
+        }
+        out.append("\n\n");
+
+        out.append("PROGRESS\n");
+        out.append("- ").append(daysDone).append(" of ").append(total).append(" days finished (")
+                .append(progress.totalItems() == 0 ? 0 : Math.round(100f * progress.completed() / progress.totalItems()))
+                .append("% of the whole course)\n");
+        if (!date.isBefore(first)) {
+            long elapsed = java.time.temporal.ChronoUnit.DAYS.between(first, date) + 1;
+            out.append("- Pace: ").append(daysDone).append(daysDone == 1 ? " day" : " days")
+                    .append(" finished in ").append(elapsed)
+                    .append(elapsed == 1 ? " calendar day\n" : " calendar days\n");
+        }
+        out.append("- Current streak: ").append(progress.streak())
+                .append(progress.streak() == 1 ? " day\n" : " days in a row\n");
+        out.append("- Week by week (done/planned): ").append(weekLine(progress.weeks())).append("\n\n");
+
+        List<String> shortfalls = new ArrayList<>();
+        for (PlanDay day : s.days()) {
+            for (PlanItem item : day.getItems()) {
+                Completion c = s.done().get(item.getId());
+                Integer planned = item.reps().value();
+                if (c != null && c.getActualReps() != null && planned != null && c.getActualReps() < planned) {
+                    shortfalls.add(item.getName() + " on Day " + day.getDayNumber() + ": plan said "
+                            + amount(item, planned) + ", I managed " + amount(item, c.getActualReps()));
+                }
+            }
+        }
+        out.append("WHAT DIDN'T GO TO PLAN\n");
+        if (shortfalls.isEmpty()) {
+            out.append("- Nothing logged below the plan so far.\n");
+        } else {
+            shortfalls.forEach(line -> out.append("- ").append(line).append('\n'));
+        }
+
+        out.append("\nWHAT I WANT\n");
+        out.append("Adjust the remaining days based on this — keep what's working, ");
+        out.append("ease off what keeps coming up short, and keep it day by day.\n");
+        out.append("Send the WHOLE updated plan again in the Anything format ");
+        out.append("(day-by-day shape: --- header with anything/title/category/days, ");
+        out.append("## Days A-B: Name, ### Day N: Title, a sentence of instructions, ");
+        out.append("and \"- Practice | 10m | note: ...\").\n");
+        return out.toString();
+    }
+
+    /** "5 min" for a timed practice, "12" for a count. */
+    private static String amount(PlanItem item, int value) {
+        if (item.reps().kind() == com.chintu.anything.parser.Reps.Kind.SECONDS) {
+            return value % 60 == 0 ? (value / 60) + " min" : value + "s";
+        }
+        return String.valueOf(value);
     }
 
     private static String weekLine(List<WeekBar> weeks) {

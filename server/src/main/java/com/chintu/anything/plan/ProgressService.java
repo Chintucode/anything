@@ -41,16 +41,24 @@ public class ProgressService {
     private final CompletionRepository completions;
     private final SkippedDayRepository skips;
 
-    public ProgressService(PlanRepository plans, CompletionRepository completions, SkippedDayRepository skips) {
+    private final CourseService courses;
+
+    public ProgressService(PlanRepository plans, CompletionRepository completions, SkippedDayRepository skips,
+            CourseService courses) {
         this.plans = plans;
         this.completions = completions;
         this.skips = skips;
+        this.courses = courses;
     }
 
     @Transactional(readOnly = true)
     public ProgressResponse progress(long planId, LocalDate date) {
         Plan plan = plans.findById(planId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan " + planId + " not found."));
+        // A day-by-day course is scheduled by order, not by date: see CourseService.
+        if (plan.isSequential()) {
+            return courses.progress(plan, date);
+        }
 
         LocalDate first = PlanSchedule.firstDay(plan);
         LocalDate last = plan.endDate();

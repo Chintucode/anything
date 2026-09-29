@@ -66,7 +66,9 @@ export function PlansScreen() {
                     <div className="list-row-text">
                       <span className="t-headline">{plan.title}</span>
                       <span className="t-subhead secondary">
-                        {plan.weeks} weeks · {formatShort(plan.startDate)} – {formatShort(plan.endDate)}
+                        {plan.schedule === 'SEQUENTIAL'
+                          ? `${plan.totalDays} days, day by day · from ${formatShort(plan.startDate)}`
+                          : `${plan.weeks} weeks · ${formatShort(plan.startDate)} – ${formatShort(plan.endDate)}`}
                       </span>
                     </div>
                   </div>

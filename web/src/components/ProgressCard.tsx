@@ -8,6 +8,8 @@ type Props = {
   date: string
   /** Current plan week: the bar the strip highlights. */
   week?: number
+  /** A day-by-day course counts its streak in calendar days, not sessions. */
+  course?: boolean
 }
 
 /**
@@ -31,7 +33,7 @@ type Props = {
  * different in kind — a task and a journey — rather than the same thing at two
  * zoom levels, which is what made the last pair redundant.
  */
-export function ProgressCard({ planId, date, week }: Props) {
+export function ProgressCard({ planId, date, week, course = false }: Props) {
   const progress = useProgress(planId, date)
 
   if (!progress.data) {
@@ -58,7 +60,9 @@ export function ProgressCard({ planId, date, week }: Props) {
         <div className="progress-stats">
           <Stat
             value={streak === 0 ? '—' : String(streak)}
-            label={streak === 1 ? 'session in a row' : 'sessions in a row'}
+            label={course
+              ? (streak === 1 ? 'day in a row' : 'days in a row')
+              : (streak === 1 ? 'session in a row' : 'sessions in a row')}
           />
         </div>
       </header>

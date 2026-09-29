@@ -4,6 +4,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.chintu.anything.parser.PlanHeader.Schedule;
 import com.chintu.anything.parser.Reps;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -19,6 +20,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  *   <li>FINISHED: the plan is over</li>
  * </ul>
  * Fields that don't apply are left out of the JSON.
+ *
+ * <p>A day-by-day plan uses the same shape. Its {@code week} is the seven-day chunk the
+ * day falls in (days 1-7 are week 1), {@code dayNumber} and {@code totalDays} are set,
+ * and {@code missed} and {@code rested} never are: a course can't be missed.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record TodayResponse(
@@ -37,7 +42,15 @@ public record TodayResponse(
         NextWorkout next,
         MissedDay missed,
         /** Rest days only: true once you've marked the day as taken. */
-        Boolean rested) {
+        Boolean rested,
+        /** WEEKLY or SEQUENTIAL: decides how the screen reads the rest of this. */
+        Schedule schedule,
+        /** Day-by-day plans only: the 9 in "Day 9 of 21". */
+        Integer dayNumber,
+        /** Day-by-day plans only: the 21 in "Day 9 of 21". */
+        Integer totalDays,
+        /** The paragraph under the day's heading, if the plan wrote one. */
+        String description) {
 
     public enum Status { TRAINING, REST, SKIPPED, NOT_STARTED, FINISHED }
 

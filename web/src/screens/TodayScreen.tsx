@@ -25,11 +25,15 @@ export function TodayScreen() {
   const plans = usePlans()
   const [planId, setPlanId] = useState<number | null>(null)
   // Which day is on screen. Today by default; the week strip can move it.
-  const [date, setDate] = useState(todayISO())
-  const isToday = date === todayISO()
+  const [browsedDate, setDate] = useState(todayISO())
 
   // Default to the newest plan, but remember the one the user picked.
   const activeId = planId ?? plans.data?.[0]?.id
+  // A day-by-day course isn't browsed by date — Day 9 isn't "Thursday" — so it
+  // always shows today, which means the next day you haven't done.
+  const course = plans.data?.find((p) => p.id === activeId)?.schedule === 'SEQUENTIAL'
+  const date = course ? todayISO() : browsedDate
+  const isToday = date === todayISO()
   const today = useToday(activeId, date)
 
   return (
@@ -55,7 +59,7 @@ export function TodayScreen() {
         <PlanSwitcher plans={plans.data} activeId={activeId} onPick={setPlanId} />
       )}
 
-      {activeId !== undefined && (
+      {activeId !== undefined && !course && (
         <WeekStrip planId={activeId} selected={date} onSelect={setDate} />
       )}
 
@@ -72,13 +76,17 @@ export function TodayScreen() {
       )}
       {today.data && (
         <>
-          <DayPager onChange={(direction) => setDate((d) => addDays(d, direction))}>
+          {course ? (
             <TodayBody today={today.data} date={date} />
-          </DayPager>
+          ) : (
+            <DayPager onChange={(direction) => setDate((d) => addDays(d, direction))}>
+              <TodayBody today={today.data} date={date} />
+            </DayPager>
+          )}
           {/* Progress is always "where I am now". Browsing to another day must not
               move the goalposts: look at tomorrow and today's untouched exercises
               would suddenly count as missed. */}
-          <ProgressCard planId={today.data.planId} date={todayISO()} week={today.data.week} />
+          <ProgressCard planId={today.data.planId} date={todayISO()} week={today.data.week} course={course} />
         </>
       )}
     </Screen>
@@ -201,7 +209,9 @@ function Workout({ today, date }: { today: TodayResponse; date: string }) {
       <section className="card workout-header">
         <div className="workout-header-text">
           <p className="t-footnote secondary eyebrow">
-            Week {today.week} of {today.totalWeeks}
+            {today.dayNumber != null
+              ? `Day ${today.dayNumber} of ${today.totalDays}`
+              : `Week ${today.week} of ${today.totalWeeks}`}
             {today.phaseName && ` · ${today.phaseName}`}
           </p>
           <h2 className="t-title-2">{today.dayTitle}</h2>
@@ -245,6 +255,14 @@ function Workout({ today, date }: { today: TodayResponse; date: string }) {
         </ProgressRing>
       </section>
 
+      {/* The paragraph under the day's heading. On a meditation day it's the practice
+          itself, so it reads as body text in its own card, not as a caption. */}
+      {today.description && (
+        <section className="card day-instructions">
+          <p className="t-body">{today.description}</p>
+        </section>
+      )}
+
       <ul className="list card exercise-items">
         {items.map((item) => (
           <li key={item.id}>
@@ -267,7 +285,9 @@ function Workout({ today, date }: { today: TodayResponse; date: string }) {
             transition={spring.default}
           >
             {/* The green ring already said "done" — this line is only here for what's next. */}
-            {today.next ? `See you ${formatShort(today.next.date)}.` : 'That was the last session of the plan.'}
+            {today.dayNumber != null
+              ? (today.next ? `${today.next.title} tomorrow.` : 'That was the last day of the course.')
+              : (today.next ? `See you ${formatShort(today.next.date)}.` : 'That was the last session of the plan.')}
           </motion.p>
         )}
       </AnimatePresence>
@@ -379,7 +399,9 @@ function Finished({ today }: { today: TodayResponse }) {
     <section className="card state-card">
       <h2 className="t-title-2">Plan complete</h2>
       <p className="t-subhead secondary">
-        {today.totalWeeks} weeks of {today.planTitle}, done.
+        {today.totalDays != null
+          ? `${today.totalDays} days of ${today.planTitle}, done.`
+          : `${today.totalWeeks} weeks of ${today.planTitle}, done.`}
       </p>
       <p className="t-subhead secondary">
         Ask your AI for the next block, then paste it in.

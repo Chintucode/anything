@@ -20,15 +20,22 @@ public class CompletionService {
     private final PlanRepository plans;
     private final CompletionRepository completions;
 
-    public CompletionService(PlanRepository plans, CompletionRepository completions) {
+    private final CourseService courses;
+
+    public CompletionService(PlanRepository plans, CompletionRepository completions, CourseService courses) {
         this.plans = plans;
         this.completions = completions;
+        this.courses = courses;
     }
 
     @Transactional
     public CompletionResponse set(long planId, CompletionRequest request) {
         Plan plan = plans.findById(planId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan " + planId + " not found."));
+        // A day-by-day course is scheduled by order, not by date: see CourseService.
+        if (plan.isSequential()) {
+            return courses.setCompletion(plan, request);
+        }
         LocalDate date = request.date();
 
         // The item must be part of this plan AND scheduled on that date.

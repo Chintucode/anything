@@ -1,0 +1,8 @@
+# Keep the build context small and free of local state
+.git
+**/.DS_Store
+web/node_modules
+web/dist
+server/target
+server/data
+server/src/main/resources/static

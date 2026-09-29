@@ -35,19 +35,25 @@ public class TodayService {
     private final CompletionRepository completions;
     private final SkippedDayRepository skips;
     private final RestedDayRepository rests;
+    private final CourseService courses;
 
     public TodayService(PlanRepository plans, CompletionRepository completions, SkippedDayRepository skips,
-            RestedDayRepository rests) {
+            RestedDayRepository rests, CourseService courses) {
         this.plans = plans;
         this.completions = completions;
         this.skips = skips;
         this.rests = rests;
+        this.courses = courses;
     }
 
     @Transactional(readOnly = true)
     public TodayResponse today(long planId, LocalDate date) {
         Plan plan = plans.findById(planId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan " + planId + " not found."));
+        // A day-by-day course is scheduled by order, not by date: see CourseService.
+        if (plan.isSequential()) {
+            return courses.today(plan, date);
+        }
 
         Position pos = PlanSchedule.locate(plan, date);
 
@@ -153,6 +159,10 @@ public class TodayService {
                 daysUntilStart,
                 next,
                 missedDay(plan, date),
-                rested);
+                rested,
+                plan.getSchedule(),
+                null,
+                null,
+                day != null && !day.getDescription().isEmpty() ? day.getDescription() : null);
     }
 }

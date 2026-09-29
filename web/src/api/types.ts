@@ -73,8 +73,12 @@ export interface PlanSummary {
   category: string
   weeks: number
   startDate: string
+  /** For a day-by-day course, the earliest it can finish: it waits if days are missed. */
   endDate: string
   createdAt: string
+  schedule: Schedule
+  /** Day-by-day courses only. */
+  totalDays: number | null
 }
 
 export interface ItemView {
@@ -123,6 +127,12 @@ export interface TodayResponse {
   missed?: { date: string; weekday: Weekday; title: string; done: number; total: number }
   /** Rest days only: true once the day has been marked as taken. */
   rested?: boolean
+  schedule?: Schedule
+  /** Day-by-day courses only: "Day 9 of 21". */
+  dayNumber?: number
+  totalDays?: number
+  /** The paragraph under the day's heading, when the plan wrote one. */
+  description?: string
 }
 
 export interface WeekDay {

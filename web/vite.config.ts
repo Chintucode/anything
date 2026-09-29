@@ -28,6 +28,8 @@ export default defineConfig({
       workbox: {
         // The app shell is precached, so it opens instantly even with no signal.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Screens open from the cached app even offline; the API never does.
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             // Today's workout: try the network briefly, then fall back to the last copy.

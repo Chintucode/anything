@@ -37,6 +37,9 @@ public class PlanPhase {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false, length = 1000)
+    private String description = "";
+
     @OneToMany(mappedBy = "phase", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     private List<PlanDay> days = new ArrayList<>();
@@ -44,10 +47,19 @@ public class PlanPhase {
     protected PlanPhase() {
     }
 
+    /**
+     * @param fromWeek first week (weekly plan) or first day (day-by-day plan) of the phase.
+     *                 The column name predates day-by-day plans; the unit is the plan's own.
+     */
     public PlanPhase(int fromWeek, int toWeek, String name) {
         this.fromWeek = fromWeek;
         this.toWeek = toWeek;
         this.name = name;
+    }
+
+    public PlanPhase describedAs(String description) {
+        this.description = description == null ? "" : description;
+        return this;
     }
 
     public void addDay(PlanDay day) {
@@ -62,5 +74,6 @@ public class PlanPhase {
     public int getFromWeek() { return fromWeek; }
     public int getToWeek() { return toWeek; }
     public String getName() { return name; }
+    public String getDescription() { return description; }
     public List<PlanDay> getDays() { return days; }
 }

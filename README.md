@@ -9,6 +9,9 @@ Paste an AI-written plan and Anything turns it into a calm daily tracker. See `B
 ```
 anything/
 ├── BLUEPRINT.md        day-by-day build plan
+├── DEPLOY.md           putting it on the internet (Render + Neon)
+├── Dockerfile          builds the web app into the server: one image, one URL
+├── render.yaml         tells Render how to run it
 ├── FRICTION.md         daily log of what annoys you (from Day 15)
 ├── docker-compose.yml  local PostgreSQL
 ├── fixtures/           sample plans in the Anything format
@@ -52,3 +55,7 @@ Run the server tests (no database needed):
 ```bash
 cd server && ./mvnw test
 ```
+
+## Put it online
+
+See `DEPLOY.md`. In short, the Docker image runs on Render's free plan, and the database runs on Neon's free plan.

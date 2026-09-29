@@ -36,9 +36,11 @@ export function ProgressRing({ percent, size = 96, stroke = 8, tone = 'accent', 
           <motion.circle
             cx={size / 2} cy={size / 2} r={radius}
             fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: percent / 100 }}
-            transition={{ type: 'spring', bounce: 0, duration: 0.8 }}
+            // A zero-length arc still draws its round cap as a lone dot; hide it until
+            // there's something to show, so an empty ring reads as empty.
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: percent / 100, opacity: percent > 0 ? 1 : 0 }}
+            transition={{ type: 'spring', bounce: 0, duration: 0.8, opacity: { duration: 0.15 } }}
           />
         </g>
       </svg>

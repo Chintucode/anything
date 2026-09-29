@@ -37,8 +37,16 @@ public class PlanDay {
     // Stored as text ("MONDAY"); the explicit VARCHAR stops Hibernate using a native enum type.
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(nullable = false, length = 9)
+    @Column(length = 9)
     private DayOfWeek weekday;
+
+    /** Day-by-day plans only: the 9 in "Day 9". A day has a weekday or a number, never both. */
+    @Column(name = "day_number")
+    private Integer dayNumber;
+
+    /** The paragraph under the heading. For a meditation day, the practice itself. */
+    @Column(nullable = false, length = 1000)
+    private String description = "";
 
     @Column(nullable = false)
     private String title;
@@ -59,6 +67,18 @@ public class PlanDay {
         this.sortOrder = sortOrder;
     }
 
+    /** "### Day 9: Naming Thoughts" — a day in a course, placed by number, not by weekday. */
+    public static PlanDay numbered(int dayNumber, String title, int sortOrder) {
+        PlanDay day = new PlanDay(null, title, sortOrder);
+        day.dayNumber = dayNumber;
+        return day;
+    }
+
+    public PlanDay describedAs(String description) {
+        this.description = description == null ? "" : description;
+        return this;
+    }
+
     public void addItem(PlanItem item) {
         items.add(item);
         item.setDay(this);
@@ -69,6 +89,8 @@ public class PlanDay {
     public Long getId() { return id; }
     public PlanPhase getPhase() { return phase; }
     public DayOfWeek getWeekday() { return weekday; }
+    public Integer getDayNumber() { return dayNumber; }
+    public String getDescription() { return description; }
     public String getTitle() { return title; }
     public int getSortOrder() { return sortOrder; }
     public List<PlanItem> getItems() { return items; }

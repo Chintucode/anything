@@ -1,0 +1,15 @@
+# Render Blueprint: Render reads this file and creates the service for you.
+# The database is not here. It lives on Neon, because Render's free database is
+# deleted after 30 days. See DEPLOY.md.
+services:
+  - type: web
+    name: anything
+    runtime: docker
+    plan: free              # without this line Render picks a paid plan
+    region: singapore       # closest to India; put the Neon database in Singapore too
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit   # every push to main redeploys
+    envVars:
+      - key: DATABASE_URL
+        sync: false         # Render asks you for it; paste Neon's connection string

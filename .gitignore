@@ -16,3 +16,6 @@ web/dist/
 
 # Local H2 database files
 server/data/
+
+# The web app copied into the server by the Docker build
+server/src/main/resources/static/

@@ -57,6 +57,17 @@
   color: var(--success);
 }
 
+/* The day's instructions: a meditation day's whole practice lives here. */
+.day-instructions {
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.day-instructions p {
+  color: var(--label-2);
+  line-height: 1.5;
+}
+
 /* ---------- Exercise rows ---------- */
 .exercise-items {
   overflow: hidden;
