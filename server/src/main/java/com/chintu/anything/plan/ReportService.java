@@ -202,13 +202,23 @@ public class ReportService {
 
         List<String> lines = new ArrayList<>();
         for (LocalDate d = first; !d.isAfter(last); d = d.plusDays(1)) {
+            final LocalDate d0 = d;
             Optional<PlanDay> day = PlanSchedule.dayOn(plan, d);
             if (day.isEmpty()) {
                 continue;
             }
             String title = day.get().getTitle();
             if (skipped.contains(d)) {
-                lines.add(title + " on " + d.format(DAY) + ": skipped");
+                // Say what was actually done before it was written off: an AI told only
+                // "skipped" will rewrite a session that was three quarters finished.
+                int did = (int) day.get().getItems().stream()
+                        .filter(i -> byDate.getOrDefault(d0, List.<Completion>of()).stream()
+                                .anyMatch(c -> c.getItem().getId().equals(i.getId())))
+                        .count();
+                int of = day.get().getItems().size();
+                lines.add(title + " on " + d.format(DAY) + (did == 0
+                        ? ": skipped"
+                        : ": skipped after " + did + " of " + of + " exercises"));
                 continue;
             }
 

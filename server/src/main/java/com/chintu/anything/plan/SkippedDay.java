@@ -49,4 +49,9 @@ public class SkippedDay {
     public Long getId() { return id; }
     public Plan getPlan() { return plan; }
     public LocalDate getSkipOn() { return skipOn; }
+
+    /** Moves with the plan when it is shifted, so the record still lines up with the schedule. */
+    void moveBy(int days) {
+        skipOn = skipOn.plusDays(days);
+    }
 }

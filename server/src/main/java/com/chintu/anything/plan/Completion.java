@@ -63,6 +63,11 @@ public class Completion {
     public Plan getPlan() { return plan; }
     public PlanItem getItem() { return item; }
     public LocalDate getDoneOn() { return doneOn; }
+
+    /** Moves with the plan when it is shifted, so the record still lines up with the schedule. */
+    void moveBy(int days) {
+        doneOn = doneOn.plusDays(days);
+    }
     public Integer getActualReps() { return actualReps; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

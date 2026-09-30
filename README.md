@@ -15,6 +15,7 @@ anything/
 ├── FRICTION.md         daily log of what annoys you (from Day 15)
 ├── docker-compose.yml  local PostgreSQL
 ├── fixtures/           sample plans in the Anything format
+├── tools/              one-off jobs (copying your local plans to the live database)
 ├── server/             Spring Boot API (Java 21)
 └── web/                React + TypeScript + Vite + Motion
 ```

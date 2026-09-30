@@ -41,7 +41,7 @@ public class PlanParser {
      * meditation course. (A plain hyphen can't be a separator: it's already the range.)
      */
     private static final Pattern PHASE_HEADING = Pattern.compile(
-            "^##\\s+(Weeks?|Days?)\\s+(\\d+)(?:\\s*-\\s*(\\d+))?\\s*(?:[:\\u2014\\u2013]\\s*(.*))?$",
+            "^##\\s+(Weeks?|Days?)\\s+(\\d{1,7})(?:\\s*-\\s*(\\d{1,7}))?\\s*(?:[:\\u2014\\u2013]\\s*(.*))?$",
             Pattern.CASE_INSENSITIVE);
 
     /** "### Mon: Push", "### Monday", "### thu: Legs + Core". */
@@ -51,7 +51,7 @@ public class PlanParser {
 
     /** "### Day 9: Naming Thoughts", "### Day 1 - Just Breathe", "### Day 21". */
     private static final Pattern DAY_NUMBER_HEADING = Pattern.compile(
-            "^###\\s+Day\\s+(\\d+)\\s*(?:[:\\u2014\\u2013-]\\s*(.*))?$",
+            "^###\\s+Day\\s+(\\d{1,7})\\s*(?:[:\\u2014\\u2013-]\\s*(.*))?$",
             Pattern.CASE_INSENSITIVE);
 
     /** Any "###" heading at all, used to work out how the plan is scheduled. */
@@ -65,7 +65,7 @@ public class PlanParser {
      * for when it forgets the format: "3 sets x 10", "3 sets of 10".
      */
     private static final Pattern SETS_REPS = Pattern.compile(
-            "^(\\d+)\\s*(?:sets?)?\\s*(?:[x×]|of)\\s*(\\S.*)$", Pattern.CASE_INSENSITIVE);
+            "^(\\d{1,7})\\s*(?:sets?)?\\s*(?:[x×]|of)\\s*(\\S.*)$", Pattern.CASE_INSENSITIVE);
 
     /** A trailing "reps" is noise: "10 reps" and "10" are the same thing. */
     private static final Pattern TRAILING_REPS = Pattern.compile("\\s+reps?$", Pattern.CASE_INSENSITIVE);
@@ -75,10 +75,16 @@ public class PlanParser {
 
     /** "10", "10 each leg", "30s", "2m", "45 sec each side". */
     private static final Pattern REPS_VALUE = Pattern.compile(
-            "^(\\d+)\\s*(s|sec|secs|seconds|m|min|mins|minutes)?(?:\\s+(.+))?$", Pattern.CASE_INSENSITIVE);
+            "^(\\d{1,7})\\s*(s|sec|secs|seconds|m|min|mins|minutes)?(?:\\s+(.+))?$", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern REST_FIELD = Pattern.compile(
-            "^rest\\s+(\\d+)\\s*(s|sec|secs|seconds|m|min|mins|minutes)?$", Pattern.CASE_INSENSITIVE);
+            "^rest\\s+(\\d{1,7})\\s*(s|sec|secs|seconds|m|min|mins|minutes)?$", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * A run of digits no plan ever means. Bounding the patterns above stops these
+     * overflowing an int; this stops them slipping through as free text instead.
+     */
+    private static final Pattern ABSURD_NUMBER = Pattern.compile("\\d{8,}");
 
     private static final Pattern NOTE_FIELD = Pattern.compile("^note\\s*:\\s*(.*)$", Pattern.CASE_INSENSITIVE);
 
@@ -158,6 +164,12 @@ public class PlanParser {
         // phase would show up as a confusing "weeks not covered" error.
         if (errors.isEmpty() && header != null && !phases.isEmpty()) {
             phases = PlanValidator.checkCoverage(header, phases, errors);
+            if (errors.isEmpty()) {
+                // Only worth saying when nothing else is wrong: a plan with a broken
+                // heading is already going back to the AI, and "and 18 days are
+                // missing" on top of that is noise, not help.
+                PlanValidator.checkEveryDayIsWritten(header, phases, errors);
+            }
         }
 
         if (phases.isEmpty() && errors.isEmpty()) {
@@ -471,6 +483,11 @@ public class PlanParser {
 
         // "3x10 reps" and "3x10" are the same plan; the word adds nothing to track.
         String amount = TRAILING_REPS.matcher(fields[1].trim()).replaceFirst("").trim();
+        if (ABSURD_NUMBER.matcher(amount).find()) {
+            errors.add(new ParseError(lineNo, "\"" + fields[1].trim()
+                    + "\" isn't sets x reps or a length. Write it like 3x10, 3x30s, 1xmax or 10m."));
+            return null;
+        }
         Matcher sr = SETS_REPS.matcher(amount);
         int sets;
         String repsText;
@@ -507,6 +524,11 @@ public class PlanParser {
             Matcher noteM = NOTE_FIELD.matcher(field);
             if (restM.matches()) {
                 rest = toSeconds(Integer.parseInt(restM.group(1)), restM.group(2));
+                if (rest > MAX_REST_SECONDS) {
+                    errors.add(new ParseError(lineNo, "\"" + field
+                            + "\" is longer than a whole day. Write it like \"rest 90s\" or \"rest 2m\"."));
+                    ok = false;
+                }
             } else if (noteM.matches()) {
                 note = noteM.group(1).trim();
             } else {
@@ -538,6 +560,9 @@ public class PlanParser {
         }
         return new Reps(Reps.Kind.TEXT, null, "", raw);
     }
+
+    /** A rest longer than this is a typo, not a plan. */
+    private static final int MAX_REST_SECONDS = 24 * 60 * 60;
 
     private static int toSeconds(int number, String unit) {
         if (unit == null) {

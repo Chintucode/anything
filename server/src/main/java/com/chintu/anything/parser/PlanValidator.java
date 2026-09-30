@@ -5,14 +5,17 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Whole-plan checks that need every phase in view:
  * <ul>
  *   <li>phases cover 1 to the last week (or day) with no gaps or overlaps</li>
  *   <li>no day is written twice</li>
+ *   <li>a day-by-day course actually contains every one of its days</li>
  * </ul>
  * Line-by-line checks live in {@link PlanParser}.
  */
@@ -85,6 +88,62 @@ final class PlanValidator {
                             + header.length() + " " + unit + "s."));
         }
         return sorted;
+    }
+
+    /**
+     * A course must contain every day it claims to have.
+     *
+     * <p>Asked for 21 days, models write out the first two or three and then say
+     * "continue the pattern for days 4-21". The phases still cover 1 to 21, so every
+     * other check passes, and the plan used to save happily — then announce itself
+     * finished at 100% after three days. Better to say so while the text is still on
+     * screen and the person can ask their AI to write the rest.
+     *
+     * <p>Weekly plans are deliberately exempt: a week with nothing in it is a rest
+     * week, which is a real thing to want.
+     */
+    static void checkEveryDayIsWritten(PlanHeader header, List<ParsedPhase> phases, List<ParseError> errors) {
+        if (header.isWeekly()) {
+            return;
+        }
+        Set<Integer> written = new HashSet<>();
+        for (ParsedPhase phase : phases) {
+            for (ParsedDay day : phase.days()) {
+                if (day.dayNumber() != null) {
+                    written.add(day.dayNumber());
+                }
+            }
+        }
+
+        // Report one error per run of missing days, so 19 missing days aren't 19 errors.
+        int day = 1;
+        while (day <= header.length()) {
+            if (written.contains(day)) {
+                day++;
+                continue;
+            }
+            int from = day;
+            while (day <= header.length() && !written.contains(day)) {
+                day++;
+            }
+            int to = day - 1;
+            errors.add(new ParseError(lineFor(phases, from),
+                    (from == to ? "Day " + from + " is missing." : "Days " + from + "-" + to + " are missing.")
+                            + " Every day has to be written out \u2014 ask your AI for the full plan,"
+                            + " with no \"continue the pattern\" lines."));
+        }
+    }
+
+    /** The heading the missing days belong under, so the error points somewhere useful. */
+    private static int lineFor(List<ParsedPhase> phases, int dayNumber) {
+        int line = 1;
+        for (ParsedPhase phase : phases) {
+            if (dayNumber >= phase.from() && dayNumber <= phase.to()) {
+                return phase.line();
+            }
+            line = phase.line();
+        }
+        return line;
     }
 
     private static String range(String unit, int from, int to) {

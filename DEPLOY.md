@@ -46,6 +46,24 @@ Why not Render's own database: Render deletes a free database 30 days after it's
 
 Open the URL in Safari, then **Share → Add to Home Screen**. It opens full-screen like an app and keeps working offline for the day you're on.
 
+## Bringing your own plans across
+
+The plans on your Mac live in `server/data/anything.mv.db`. The database online starts
+empty, so a one-time copy moves them over with every tick, rest day and logged number
+intact:
+
+```bash
+cd ~/AI-Lab/anything
+DATABASE_URL='postgresql://...' tools/import-local-data.sh --dry-run
+```
+
+That prints what it would copy and writes nothing. If it looks right, run it again
+without `--dry-run`. Use the same Neon string you gave Render.
+
+It only ever reads the database on your Mac, and a plan already online is left exactly
+as it is — so running it twice doesn't give you two of everything, and a plan you've
+since changed online isn't overwritten by the older copy on your laptop.
+
 ## Every change after this
 
 ```bash

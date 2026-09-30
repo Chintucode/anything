@@ -695,9 +695,19 @@ class PlanParserTest {
                     .isEqualTo("Build the habit and learn to notice what's happening in your body and mind.");
         }
 
+        /** Days {@code from}..{@code to} written out, because a course must contain all of them. */
+        private static String days(int from, int to, String title, String amount) {
+            StringBuilder out = new StringBuilder();
+            for (int d = from; d <= to; d++) {
+                out.append("### Day ").append(d).append(": ").append(title).append('\n')
+                        .append("- Breath awareness | ").append(amount).append('\n');
+            }
+            return out.toString();
+        }
+
         @Test
         void aBareDurationIsOneBlockOfIt() {
-            ParseResult result = parser.parse(COURSE + "## Days 1-21: All\n### Day 1: Sit\n- Breath awareness | 10m\n");
+            ParseResult result = parser.parse(COURSE + "## Days 1-21: All\n" + days(1, 21, "Sit", "10m"));
 
             ParsedItem item = result.plan().phases().get(0).days().get(0).items().get(0);
             assertThat(item.sets()).isEqualTo(1);
@@ -709,8 +719,11 @@ class PlanParserTest {
         void weekChaptersInACourseMeanSevenDaysEach() {
             ParseResult result = parser.parse(COURSE
                     + "## Week 1 — Showing Up\n### Day 1 — Just Breathe\n- Breath | 5m\n"
+                    + days(2, 7, "Sit", "5m")
                     + "## Week 2 — Deepening\n### Day 8: Longer\n- Breath | 10m\n"
-                    + "## Week 3 — Integrating\n### Day 21: Close\n- Open awareness | 15 min\n");
+                    + days(9, 14, "Sit", "10m")
+                    + "## Week 3 \u2014 Integrating\n" + days(15, 20, "Sit", "15m")
+                    + "### Day 21: Close\n- Open awareness | 15 min\n");
 
             assertThat(result.errors()).isEmpty();
             assertThat(result.plan().phases())

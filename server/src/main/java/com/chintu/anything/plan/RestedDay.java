@@ -55,4 +55,9 @@ public class RestedDay {
     public Long getId() { return id; }
     public Plan getPlan() { return plan; }
     public LocalDate getRestedOn() { return restedOn; }
+
+    /** Moves with the plan when it is shifted, so the record still lines up with the schedule. */
+    void moveBy(int days) {
+        restedOn = restedOn.plusDays(days);
+    }
 }

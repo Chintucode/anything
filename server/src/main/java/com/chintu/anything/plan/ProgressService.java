@@ -32,7 +32,11 @@ import com.chintu.anything.schedule.PlanCalendar.Position;
  *
  * <p>The streak stays forgiving: an unfinished today doesn't break it, because the day
  * isn't over yet. A past training day that wasn't fully done does break it, unless it
- * was skipped — a skipped day stops counting altogether.
+ * was skipped — a skipped day neither counts nor breaks it.
+ *
+ * <p>Skipping is about the part you didn't do. Anything already ticked on a skipped day
+ * still counts, on both sides of the fraction: writing off a day you'd half finished
+ * used to take the work with it, which made Skip the most expensive button in the app.
  */
 @Service
 public class ProgressService {
@@ -85,11 +89,13 @@ public class ProgressService {
                 continue;
             }
             Optional<PlanDay> day = PlanSchedule.dayAt(plan, pos);
-            if (day.isEmpty() || skipped.contains(d)) {
-                continue; // rest day, or a day the user wrote off
+            if (day.isEmpty()) {
+                continue; // a rest day: the plan asked for nothing
             }
-            int due = day.get().getItems().size();
             int done = doneCount(day.get(), doneByDate.get(d));
+            // Skipping writes off what you DIDN'T do, not what you did. Three of four
+            // exercises and then "skip it" should read as three of three, not zero.
+            int due = skipped.contains(d) ? done : day.get().getItems().size();
 
             totalItems += due;
             weekScheduled[pos.week()] += due;
