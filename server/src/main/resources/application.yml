@@ -35,6 +35,18 @@ spring:
   config:
     activate:
       on-profile: prod
+  main:
+    banner-mode: off
+  jmx:
+    enabled: false          # nothing reads the JMX beans; registering them isn't free
+  data:
+    jpa:
+      repositories:
+        bootstrap-mode: deferred   # repositories finish in the background, not in the critical path
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect   # saves asking the database what it is
 
 server:
   port: ${PORT:8080}                     # Render tells the app which port to listen on

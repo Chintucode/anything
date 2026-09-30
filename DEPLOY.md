@@ -64,6 +64,50 @@ It only ever reads the database on your Mac, and a plan already online is left e
 as it is — so running it twice doesn't give you two of everything, and a plan you've
 since changed online isn't overwritten by the older copy on your laptop.
 
+## Keeping it awake
+
+A free Render service shuts down after 15 minutes with no traffic, and takes about a
+minute to come back. That minute is the difference between a tracker you tap open
+between sets and one you stop bothering with.
+
+The fix is a small service that visits `/api/health` every few minutes, so the app
+never gets the chance to fall asleep. `/api/health` is the right address to hit: it
+touches no database, so the ping keeps Render awake without waking Neon and eating
+its separate free allowance.
+
+**Set it up (about 3 minutes), at [cron-job.org](https://cron-job.org):**
+
+1. Sign up, then **Create cronjob**.
+2. **Title:** `Keep Anything awake`
+3. **URL:** `https://anything-56yj.onrender.com/api/health`
+4. **Schedule:** every 10 minutes.
+5. Under the schedule, restrict the **hours** to 05:00-23:00 in your own time zone.
+   This is the important part — see the arithmetic below.
+6. Save, then **Test run** once and check it comes back green.
+
+**Why not around the clock.** Render's free plan gives 750 instance hours a month, and
+a service only spends them while it's awake — asleep is free. A month is about 730
+hours, so staying up 24/7 would use nearly the whole allowance and leave you nothing
+for redeploys or a second service. 18 hours a day is about 550, which is comfortable
+and covers every hour you'd actually open the app.
+
+**Checking it works.** Open `https://anything-56yj.onrender.com/api/health`. It
+reports how long it has been up:
+
+```json
+{"status":"ok","app":"anything","upFor":"7h 12m","upSeconds":25920}
+```
+
+A number that keeps climbing through the day means the pinger is doing its job. One
+that keeps resetting to a few seconds means it isn't.
+
+**Worth knowing.** Render's documentation doesn't say anything either way about
+keeping a free service awake this way. It isn't dodging a paywall — the 750 hours are
+a real, metered allowance and this stays inside it — but it is a grey area rather than
+something they bless. The unambiguous alternative is Render's cheapest paid instance,
+around $7 a month, which never sleeps at all. If this app ends up mattering to you, or
+you put it in front of anyone else, that's the honest option.
+
 ## Every change after this
 
 ```bash
