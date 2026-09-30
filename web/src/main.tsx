@@ -4,6 +4,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import App from './App.tsx'
+import { AppErrorBoundary } from './components/ErrorBoundary'
 import './index.css'
 import './styles/shell.css'
 import './styles/newplan.css'
@@ -24,7 +25,9 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       {/* reducedMotion="user": springs become instant when the OS asks for less motion */}
       <MotionConfig reducedMotion="user">
-        <App />
+        <AppErrorBoundary>
+          <App />
+        </AppErrorBoundary>
       </MotionConfig>
     </QueryClientProvider>
   </StrictMode>,

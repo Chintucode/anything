@@ -158,6 +158,32 @@
   margin-top: var(--space-4);
 }
 
+/* The crash screen's folded-away detail: there for you when someone sends a
+   screenshot, not something the person has to read. */
+.error-detail {
+  margin-top: var(--space-6);
+  max-width: 100%;
+}
+
+.error-detail summary {
+  cursor: pointer;
+  padding: var(--space-2);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-detail p {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md, 10px);
+  background: var(--fill-secondary, rgba(120, 120, 128, 0.12));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
 .skeleton-list {
   display: grid;
   gap: var(--space-3);

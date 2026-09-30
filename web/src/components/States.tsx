@@ -67,6 +67,17 @@ function describe(error: unknown, fallback?: string) {
     }
   }
   if (error instanceof ApiError) {
+    if (error.notJson) {
+      // Almost always a host waking a sleeping server, which answers every
+      // request with its own page until it's up. Saying "server error" here
+      // would be wrong and unhelpful: it's a wait, not a fault.
+      return {
+        title: 'Waking up',
+        detail: "The server nods off when nobody's using it. It takes about a minute to come back.",
+        retryLabel: 'Try again',
+        gone: false,
+      }
+    }
     if (error.status === 0) {
       return {
         title: "Can't reach the server",
