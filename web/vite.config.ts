@@ -32,13 +32,27 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
-            // Today's workout: try the network briefly, then fall back to the last copy.
+            // Today's workout: the network decides, and the cache is only for when
+            // there is no network at all.
+            //
+            // There used to be a three-second timeout here, which sounds generous
+            // and is actively harmful: on a slow-but-working connection the cache
+            // answered instead, with a copy up to a fortnight old, and the app had
+            // no way to tell that from the truth. Tick an exercise, watch the
+            // refetch be answered from before the tick, and watch the row untick
+            // itself — permanently, because the server and the screen now disagree
+            // and nothing will ever correct it.
+            //
+            // Without the timeout, Workbox falls back to the cache only when the
+            // request genuinely fails, which is exactly the offline case. A slow
+            // connection now means waiting, which is honest.
             urlPattern: /\/api\/plans\/\d+\/(today|progress|week).*$/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'anything-day',
-              networkTimeoutSeconds: 3,
-              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 14 },
+              // Three days: enough to open the app offline on a trip, not enough
+              // for the fallback to be from another training week.
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 3 },
               cacheableResponse: { statuses: [200] },
             },
           },
@@ -47,8 +61,7 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'anything-plans',
-              networkTimeoutSeconds: 3,
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 14 },
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 3 },
               cacheableResponse: { statuses: [200] },
             },
           },

@@ -13,7 +13,8 @@ import { CheckIcon, SparkleIcon } from '../components/Icons'
 import { Screen } from '../components/Screen'
 import { WeekStrip } from '../components/WeekStrip'
 import { EmptyState, ErrorState, Skeleton } from '../components/States'
-import { addDays, formatLong, formatShort, todayISO } from '../lib/dates'
+import { addDays, formatLong, formatShort } from '../lib/dates'
+import { useCurrentDate } from '../lib/useToday'
 import { plural, shortDay } from '../lib/format'
 import { press, spring } from '../motion/springs'
 
@@ -24,16 +25,21 @@ function todayEyebrow() {
 export function TodayScreen() {
   const plans = usePlans()
   const [planId, setPlanId] = useState<number | null>(null)
-  // Which day is on screen. Today by default; the week strip can move it.
-  const [browsedDate, setDate] = useState(todayISO())
+  // The real current date, which keeps up with the clock while the app stays open.
+  const todayISO = useCurrentDate()
+  // Which day is on screen. `null` means "whatever today is" — deliberately not a
+  // date, so that leaving the app open overnight moves it on instead of stranding
+  // it on yesterday and writing the morning's ticks against the wrong day.
+  const [browsedDate, setBrowsedDate] = useState<string | null>(null)
 
   // Default to the newest plan, but remember the one the user picked.
   const activeId = planId ?? plans.data?.[0]?.id
   // A day-by-day course isn't browsed by date — Day 9 isn't "Thursday" — so it
   // always shows today, which means the next day you haven't done.
   const course = plans.data?.find((p) => p.id === activeId)?.schedule === 'SEQUENTIAL'
-  const date = course ? todayISO() : browsedDate
-  const isToday = date === todayISO()
+  const date = course ? todayISO : (browsedDate ?? todayISO)
+  const isToday = date === todayISO
+  const setDate = (next: string) => setBrowsedDate(next === todayISO ? null : next)
   const today = useToday(activeId, date)
 
   return (
@@ -66,7 +72,7 @@ export function TodayScreen() {
       {!isToday && (
         <div className="other-day-note">
           <span className="t-footnote secondary">Looking at another day</span>
-          <button className="chip t-footnote chip-on" onClick={() => setDate(todayISO())}>Back to today</button>
+          <button className="chip t-footnote chip-on" onClick={() => setBrowsedDate(null)}>Back to today</button>
         </div>
       )}
 
@@ -79,14 +85,14 @@ export function TodayScreen() {
           {course ? (
             <TodayBody today={today.data} date={date} />
           ) : (
-            <DayPager onChange={(direction) => setDate((d) => addDays(d, direction))}>
+            <DayPager onChange={(direction) => setDate(addDays(date, direction))}>
               <TodayBody today={today.data} date={date} />
             </DayPager>
           )}
           {/* Progress is always "where I am now". Browsing to another day must not
               move the goalposts: look at tomorrow and today's untouched exercises
               would suddenly count as missed. */}
-          <ProgressCard planId={today.data.planId} date={todayISO()} week={today.data.week} course={course} />
+          <ProgressCard planId={today.data.planId} date={todayISO} week={today.data.week} course={course} />
         </>
       )}
     </Screen>
@@ -116,11 +122,12 @@ function PlanSwitcher({ plans, activeId, onPick }: {
 }
 
 function TodayBody({ today, date }: { today: TodayResponse; date: string }) {
+  const todayISO = useCurrentDate()
   // A missed day is a question about today's training, so it belongs on today's
   // training screen and nowhere else. A rest day is for resting: nothing from
   // yesterday or tomorrow goes on it. An unfinished day answers for itself, at
   // the bottom of its own screen (see Workout).
-  const showMissed = date === todayISO() && today.status === 'TRAINING' && today.missed
+  const showMissed = date === todayISO && today.status === 'TRAINING' && today.missed
 
   return (
     <>
@@ -182,6 +189,7 @@ function SkippedDay({ today, date }: { today: TodayResponse; date: string }) {
 }
 
 function Workout({ today, date }: { today: TodayResponse; date: string }) {
+  const todayISO = useCurrentDate()
   const setCompletion = useSetCompletion(today.planId, date)
   const items = today.items ?? []
   const done = today.doneCount ?? 0
@@ -189,7 +197,7 @@ function Workout({ today, date }: { today: TodayResponse; date: string }) {
   const [celebrated, setCelebrated] = useState(false)
   // A day that's over and wasn't finished: the answer to it goes here, under the
   // day itself, rather than following you onto other days' screens.
-  const unfinishedPastDay = date < todayISO() && items.length > 0 && !allDone
+  const unfinishedPastDay = date < todayISO && items.length > 0 && !allDone
   const dayPercent = items.length ? Math.round((100 * done) / items.length) : 0
 
   useEffect(() => {
